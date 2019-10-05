@@ -1,0 +1,33 @@
+---
+title: "Homework 5 (Group Portion)"
+author: "Melinda Ding (mjd4)"
+date: "10/5/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### Question 5
+
+```{r, echo=TRUE}
+fred <- read.csv("./distanceByAirport.csv")
+data <- data.frame(fred)
+IAHdata <- data[data["ORIGIN"] == "IAH",]
+head(IAHdata)
+```
+```{r, echo=TRUE}
+dim(data)
+dim(IAHdata)
+```
+We see that we have taken a subset of the original data, where the subset is all the entries with an origin of IAH. 
+
+```{r, echo=TRUE}
+library(ggplot2)
+n <- length(sort(table(IAHdata$DEST)))
+top20 <- sort(table(IAHdata$DEST))[(n -20):n]
+
+#ggplot(data=IAHdata, aes(DEST)) 
+
+```
