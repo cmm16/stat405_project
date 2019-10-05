@@ -30,7 +30,7 @@ top20 <- data.frame(sort(table(IAHdata$DEST))[(n -20):n])
 top20names <- as.vector(top20$Var1)
 top20data <- IAHdata[IAHdata$DEST %in% top20names, ]
 ggplot() + 
-  geom_bar(data=top20data, aes(DEST)) + 
+  geom_bar(data=top20data, aes(DEST), color="blue", fill="blue") + 
   ylab("Number of Flights") + 
   xlab("Destination") +
   ggtitle("Top 20 Destinations from IAH")
