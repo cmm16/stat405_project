@@ -1,15 +1,19 @@
 ---
 title: "Homework 5 (Group Portion)"
-author: "Melinda Ding (mjd4)"
-date: "10/5/2019"
-output: html_document
+date: "10/8/2019"
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+#### Group Members 
+Melinda Ding (mjd4), Henry Creamer (hmc5), Caleigh Page (cap9), Aaryan Jadhav (aj52), Cole Morgan (cmm16)
+
 #### Question 5
+
+We started off our group project by taking all the domestic flight data in the United States in January 2019. We were interested in exploring metrics with IAH as the origin airport. 
 
 ```{r, echo=TRUE}
 fred <- read.csv("./distanceByAirport.csv")
@@ -21,7 +25,7 @@ head(IAHdata)
 dim(data)
 dim(IAHdata)
 ```
-We see that we have taken a subset of the original data, where the subset is all the entries with an origin of IAH. 
+Here you can see that we have taken a subset of the original data, where the subset is all the entries with an origin of IAH. 
 
 ```{r, echo=TRUE}
 library(ggplot2)
@@ -35,3 +39,5 @@ ggplot() +
   xlab("Destination") +
   ggtitle("Top 20 Destinations from IAH")
 ```
+
+We were interested in knowing the top destinations that flights from IAH fly to. We decided to create a bar plot of the top 20 destination airports and the number of flights to that airport. 
