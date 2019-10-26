@@ -35,5 +35,5 @@ vignettes/*.pdf
 *.utf8.md
 *.knit.md
 
-# Data base name
-data_base
+# CSV files 
+*.csv
