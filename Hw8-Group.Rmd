@@ -1,6 +1,6 @@
 ---
 title: "Homework 8 - Group"
-date: "11/5/2019"
+date: "11/7/2019"
 output: pdf_document
 ---
 
@@ -43,6 +43,18 @@ Rename all the airport names to make it consistent with the flights table.
 ```{r, echo=TRUE}
 reviews$airport_name= str_replace_all(reviews$airport_name, "-airport", "")
 head(reviews$airport_name, 20)
+```
+
+Count the number of times the word "clean", "nice", or "like" appears in each review. We can use this to gauge a positive airport review. 
+```{r, echo=TRUE}
+reviews$cleanCount= str_count(reviews$content, "clean | nice | like")
+head(reviews$cleanCount, 50)
+```
+
+Count the number of times the word "bad", "dirty", "unclean", or "dislike" appears in each review. We can use this to gauge a negative airport review. 
+```{r, echo=TRUE}
+reviews$dirtyCount= str_count(reviews$content, "bad | dirty | unclean | dislike")
+head(reviews$dirtyCount, 50)
 ```
 
 
