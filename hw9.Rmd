@@ -1,0 +1,45 @@
+---
+title: "hw-9"
+author: "Henry Creamer"
+date: "November 9, 2019"
+output: pdf_document
+---
+
+```{r, echo=TRUE,warning=FALSE, message=FALSE}
+library(RSQLite)
+library(stringr)
+dcon <- dbConnect(SQLite(), dbname = "C:/Users/bcard/Documents/SavedStuff/Stat405/group10.db")
+dbListTables(dcon)
+```
+
+Query all of the flight review data into a data frame.
+```{r, echo=TRUE,warning=FALSE, message=FALSE}
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM reviews;")
+reviews <- dbFetch(res, -1)
+dbClearResult(res)
+```
+
+Gather all of words from all of the reviews. We eliminate some words such as "the" because these words provide no business value.
+```{r, echo=TRUE}
+content <- reviews$content
+allContent <- c()
+for (review in content) {
+  words <- unlist(str_split(review, " "))
+  actual_words <- tolower(words[grep("[[:alpha:]]", words)])
+  words_to_ignore <- c("the", "this", "to", "a", "of", "in", "he", "she", "an", "and", "is", "with", "but", "or", "there", "at", "so", "be", "as", "for", "on", "do", "yet", "after", "are", "you", "that", "i", "was", "it", "have", "from", "we", "were", "had", "if", "by", "has", "then", "us", "me", "it's", "its", "am")
+  actual_words <- actual_words[!actual_words %in% words_to_ignore]
+  allContent <- c(allContent, as.vector(actual_words))
+}
+```
+
+Count how  many times each word appears and return the top 2000 words.
+```{r, echo=TRUE}
+counts_of_words <- table(allContent)
+top_words <- sort(counts_of_words, decreasing = TRUE)[1:2000]
+top_words
+```
+
+
+
