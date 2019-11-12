@@ -8,7 +8,7 @@ output: pdf_document
 ```{r, echo=TRUE,warning=FALSE, message=FALSE}
 library(RSQLite)
 library(stringr)
-dcon <- dbConnect(SQLite(), dbname = "C:/Users/bcard/Documents/SavedStuff/Stat405/group10.db")
+dcon <- dbConnect(SQLite(), dbname = "group10.db")
 dbListTables(dcon)
 ```
 
@@ -38,8 +38,39 @@ Count how  many times each word appears and return the top 2000 words.
 ```{r, echo=TRUE}
 counts_of_words <- table(allContent)
 top_words <- sort(counts_of_words, decreasing = TRUE)[1:2000]
-top_words
 ```
 
+```{r, echo=TRUE}
+library(XML)
 
+## Financial data
+## 
+url <- "https://www.thesaurus.com/browse/cat?s=t"
+download.file(url, destfile = "advfn.html")
+doc <- htmlParse("advfn.html")
+
+## Get the closing price
+tmp <- getNodeSet(doc, "//a[@data-linkid='nn1ov4']")
+str(tmp)
+xmlToDataFrame(tmp)
+free(doc)
+
+top2k = rep(names(top_words))
+
+top2kdf = data.frame(row.names=top2k)
+
+for (word in top2k)
+{
+  url = paste("https://www.thesaurus.com/browse/", word, "?s=t", sep="")
+  download.file(url, destfile = "advfn.html")
+  doc <- htmlParse("advfn.html")
+  tmp <- getNodeSet(doc, "//a[@data-linkid='nn1ov4']")
+  new_line <- append(word, as.character(xmlToDataFrame(tmp)$text[1:10]))
+  new_line
+  top2kdf <- rbind(top2kdf, data.frame(matrix(new_line, nrow=1)))
+  }  
+top2kdf
+
+getwd()
+```
 
