@@ -28,7 +28,8 @@ allContent <- c()
 for (review in content) {
   words <- unlist(str_split(review, " "))
   actual_words <- tolower(words[grep("[[:alpha:]]", words)])
-  words_to_ignore <- c("the", "this", "to", "a", "of", "in", "he", "she", "an", "and", "is", "with", "but", "or", "there", "at", "so", "be", "as", "for", "on", "do", "yet", "after", "are", "you", "that", "i", "was", "it", "have", "from", "we", "were", "had", "if", "by", "has", "then", "us", "me", "it's", "its", "am")
+  actual_words <- gsub('[[:punct:] ]+','',actual_words)
+  words_to_ignore <- c("the", "this", "to", "a", "of", "in", "he", "she", "an", "and", "is", "with", "but", "or", "there", "at", "so", "be", "as", "for", "on", "do", "yet", "after", "are", "you", "that", "i", "was", "it", "have", "from", "we", "were", "had", "if", "by", "has", "then", "us", "me", "it's", "its", "am", "my", "they", "our", "your", "than", "eg", "their")
   actual_words <- actual_words[!actual_words %in% words_to_ignore]
   allContent <- c(allContent, as.vector(actual_words))
 }
@@ -38,27 +39,19 @@ Count how  many times each word appears and return the top 2000 words.
 ```{r, echo=TRUE}
 counts_of_words <- table(allContent)
 top_words <- sort(counts_of_words, decreasing = TRUE)[1:2000]
+word_vector <- rep(names(top_words))
+word_vector <- word_vector[word_vector != "their"]
 ```
 
+We are scraping thesaurus.com for each top 2,000 word. For example, for the word "airport", the URL we are scraping is "https://www.thesaurus.com/browse/airport?s=t". 
 ```{r, echo=TRUE}
 library(XML)
 
-## Financial data
-## 
-url <- "https://www.thesaurus.com/browse/cat?s=t"
-download.file(url, destfile = "advfn.html")
-doc <- htmlParse("advfn.html")
-
-## Get the closing price
-tmp <- getNodeSet(doc, "//a[@data-linkid='nn1ov4']")
-str(tmp)
-xmlToDataFrame(tmp)
-free(doc)
-
-top2k = rep(names(top_words))
+top2k = word_vector
 
 top2kdf = data.frame(row.names=top2k)
 
+# Iterate through the top 2,000 words and scrape the thesaurus website for each word. 
 for (word in top2k)
 {
   url = paste("https://www.thesaurus.com/browse/", word, "?s=t", sep="")
