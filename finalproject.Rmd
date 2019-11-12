@@ -1,0 +1,117 @@
+---
+title: "Final Project"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Group 10 Final Project
+#### Group Members 
+Melinda Ding (mjd4), Henry Creamer (hmc5), Caleigh Page (cap9), Aaryan Jadhav (aj52), Cole Morgan (cmm16)
+
+
+```{r, echo=TRUE}
+library(ggplot2)
+library(RSQLite)
+```
+
+
+## Homework 5
+We started off our group project by taking all the domestic flight data in the United States in January 2019. We were interested in exploring metrics with IAH as the origin airport. To do so, we first took a subset of the original data, where the subset is all the entries with an origin of IAH.
+```{r, echo=TRUE}
+fred <- read.csv("./distanceByAirport.csv")
+data <- data.frame(fred)
+IAHdata <- data[data["ORIGIN"] == "IAH",]
+head(IAHdata)
+```
+```{r, echo=TRUE}
+dim(data)
+dim(IAHdata)
+```
+
+We were interested in knowing the top destinations that flights from IAH fly to. We decided to create a bar plot of the top 20 destination airports and the number of flights to that airport. 
+```{r, echo=TRUE}
+n <- length(sort(table(IAHdata$DEST)))
+top20 <- data.frame(sort(table(IAHdata$DEST))[(n -20):n]) 
+top20names <- as.vector(top20$Var1)
+top20data <- IAHdata[IAHdata$DEST %in% top20names, ]
+ggplot() + 
+  geom_bar(data=top20data, aes(DEST), color="blue", fill="blue") + 
+  ylab("Number of Flights") + 
+  xlab("Destination") +
+  ggtitle("Top 20 Destinations from IAH")
+```
+
+
+
+## Homework 7
+"group10.db" is the name of our data base. "flights" is our primary source, and "DaysOnZillow_Msa" is our secondary source. Our secondary data, DaysOnZillow_Msa, lists the average days for a listing on Zillow to come off the housing market in many cities.
+```{r, echo=TRUE}
+dcon <- dbConnect(SQLite(), dbname = "group10.db")
+dbListTables(dcon)
+```
+
+#### Primary Source 
+Query all flights out of IAH airport. 
+```{r, echo=TRUE}
+res <- dbSendQuery(conn = dcon, "
+SELECT YEAR, MONTH, DAY_OF_MONTH, DAY_OF_WEEK, ORIGIN, DEST, 
+  CRS_DEP_TIME, DEP_TIME, CRS_ARR_TIME, ARR_TIME, DISTANCE
+FROM flights
+WHERE ORIGIN = 'IAH';")
+IAHdata <- dbFetch(res, -1)
+dbClearResult(res)
+head(IAHdata)
+```
+
+
+
+## Homework 8
+Query the entire reviews table into a dataframe. 
+```{r, echo=TRUE}
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM reviews;")
+reviews <- dbFetch(res, -1)
+dbClearResult(res)
+head(reviews)
+```
+
+Get the length of each review. 
+```{r, echo=TRUE}
+reviews$review_length = str_length(reviews$content)
+head(reviews$review_length, 20)
+```
+
+Get the number of words in each review. 
+```{r, echo=TRUE}
+split_strings = str_split(reviews$content, " ")
+reviews$review_word_count = sapply(split_strings, length)
+head(reviews$review_word_count, 20)
+```
+
+Rename all the airport names to make it consistent with the flights table. 
+```{r, echo=TRUE}
+reviews$airport_name= str_replace_all(reviews$airport_name, "-airport", "")
+head(reviews$airport_name, 20)
+```
+
+Count the number of times the word "clean", "nice", or "like" appears in each review. We can use this to gauge a positive airport review. 
+```{r, echo=TRUE}
+reviews$cleanCount= str_count(reviews$content, "clean | nice | like")
+head(reviews$cleanCount, 50)
+```
+
+Count the number of times the word "bad", "dirty", "unclean", or "dislike" appears in each review. We can use this to gauge a negative airport review. 
+```{r, echo=TRUE}
+reviews$dirtyCount= str_count(reviews$content, "bad | dirty | unclean | dislike")
+head(reviews$dirtyCount, 50)
+```
+
+
+
+## Homework 9
+
+
