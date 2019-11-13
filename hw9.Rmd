@@ -29,7 +29,7 @@ for (review in content) {
   words <- unlist(str_split(review, " "))
   actual_words <- tolower(words[grep("[[:alpha:]]", words)])
   actual_words <- gsub('[[:punct:] ]+','',actual_words)
-  words_to_ignore <- c("the", "this", "to", "a", "of", "in", "he", "she", "an", "and", "is", "with", "but", "or", "there", "at", "so", "be", "as", "for", "on", "do", "yet", "after", "are", "you", "that", "i", "was", "it", "have", "from", "we", "were", "had", "if", "by", "has", "then", "us", "me", "it's", "its", "am", "my", "they", "our", "your", "than", "eg", "their")
+  words_to_ignore <- c("the", "this", "to", "a", "of", "in", "he", "she", "an", "and", "is", "with", "but", "or", "there", "at", "so", "be", "as", "for", "on", "do", "yet", "after", "are", "you", "that", "i", "was", "it", "have", "from", "we", "were", "had", "if", "by", "has", "then", "us", "me", "it's", "its", "am", "my", "they", "our", "your", "than", "eg", "their", "checkin", "what", "ive")
   actual_words <- actual_words[!actual_words %in% words_to_ignore]
   allContent <- c(allContent, as.vector(actual_words))
 }
@@ -41,6 +41,9 @@ counts_of_words <- table(allContent)
 top_words <- sort(counts_of_words, decreasing = TRUE)[1:2000]
 word_vector <- rep(names(top_words))
 word_vector <- word_vector[word_vector != "their"]
+word_vector <- word_vector[word_vector != "checkin"]
+word_vector <- word_vector[word_vector != "what"]
+word_vector <- word_vector[word_vector != "ive"]
 ```
 
 We are scraping thesaurus.com for each top 2,000 word. For example, for the word "airport", the URL we are scraping is "https://www.thesaurus.com/browse/airport?s=t". 
@@ -55,15 +58,16 @@ top2kdf = data.frame(row.names=top2k)
 for (word in top2k)
 {
   url = paste("https://www.thesaurus.com/browse/", word, "?s=t", sep="")
-  download.file(url, destfile = "advfn.html")
-  doc <- htmlParse("advfn.html")
-  tmp <- getNodeSet(doc, "//a[@data-linkid='nn1ov4']")
-  new_line <- append(word, as.character(xmlToDataFrame(tmp)$text[1:10]))
-  new_line
-  top2kdf <- rbind(top2kdf, data.frame(matrix(new_line, nrow=1)))
-  }  
+  result <- try(download.file(url, destfile = "advfn.html", quiet = TRUE))
+  if (result == 0) {
+    doc <- htmlParse("advfn.html")
+    tmp <- getNodeSet(doc, "//a[@data-linkid='nn1ov4']")
+    new_line <- append(word, as.character(xmlToDataFrame(tmp)$text[1:10]))
+    top2kdf <- rbind(top2kdf, data.frame(matrix(new_line, nrow=1)))
+  }
+  
+}  
 top2kdf
 
-getwd()
 ```
 
