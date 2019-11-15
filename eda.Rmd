@@ -1,0 +1,54 @@
+---
+title: "EDA"
+output: pdf_notebook
+---
+
+```{r, echo=TRUE,warning=FALSE, message=FALSE}
+library(RSQLite)
+library(ggplot2)
+library(dplyr)
+
+dcon <- dbConnect(SQLite(), dbname = "group10.db")
+dbListTables(dcon)
+```
+
+```{r, echo=TRUE,warning=FALSE, message=FALSE}
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM flights;")
+flights <- dbFetch(res, -1)
+dbClearResult(res)
+head(flights)
+```
+
+```{r, echo=TRUE,warning=FALSE, message=FALSE}
+res <- dbSendQuery(conn=dcon, "
+SELECT ORIGIN, MONTH, DAY_OF_MONTH, count(*) as count
+FROM flights 
+where ORIGIN == 'IAH'
+group by MONTH, DAY_OF_MONTH;
+")
+df4b <- dbFetch(res, -1)
+dbClearResult(res)
+head(df4b)
+```
+
+```{r}
+plot(df4b$count)
+```
+
+
+```{r}
+res <- dbSendQuery(conn=dcon, "
+SELECT ORIGIN, MONTH, count(*) as count
+FROM flights 
+where ORIGIN == 'IAH'
+group by MONTH;
+")
+df4a <- dbFetch(res, -1)
+dbClearResult(res)
+
+plot(df4a$count, type="l")
+```
+
+
