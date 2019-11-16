@@ -1,0 +1,68 @@
+---
+title: "Sentiment"
+author: "Henry Creamer"
+date: "November 15, 2019"
+output: pdf_document
+---
+
+1. Decide what to do with rows that do not have an overall rating (3925 rows); we could assign a neutral score (like 5) or we could drop the rows?
+  -We could  use the rows that don't have overall rating as test data. So we use our sentiment analysis model to assign scores to these rows, then we look at "recommended" column for these test scores and see if we classified correctly (i.e. airports that were recommended, we check to see if we gave it a good overall_rating)
+2. Compress reviews using our top2kdf
+3. Run sentiment analysis on each compressed review (get back positive or negative or neutral)
+4. Determine whether the review matches the overall rating
+5. come up with a plot...
+
+```{r, echo=TRUE}
+options(java.parameters = "- Xmx1024m")
+gc()
+library(RSentiment)
+library(stringr)
+reviews <- read.csv("airport.csv")
+reviews <- reviews[!is.na(reviews$overall_rating), ]
+topWords <- read.csv("top2kdf.csv")
+```
+
+Condenses our airport review data by replacing words with a synonym word that occurs a lot. This will allow us to run sentiment analysis more effectively.
+```{r, echo=TRUE}
+goodWordsToCondense <- c("good", "bad", "flight", "airplane", "experience", "very", "clean", "")
+
+for (goodWord in goodWordsToCondense) {
+  wordsToReplace <- topWords[topWords$X2 == goodWord | topWords$X3 == goodWord | topWords$X4 == goodWord | topWords$X5 == goodWord | topWords$X6 == goodWord | topWords$X7 == goodWord | topWords$X8 == goodWord | topWords$X9 == goodWord | topWords$X10 == goodWord | topWords$X11 == goodWord, ][2]
+  wordsToReplace <- as.vector(wordsToReplace[!is.na(wordsToReplace)])
+  for (word in wordsToReplace) {
+    reviews$condensedContent <- sapply(reviews$content, str_replace_all, pattern = word, replacement = goodWord)
+  }
+}
+```
+
+Runs sentiment analysis on the airport review. A positive score means it has a positive sentiment, a 0 score means neutral sentiment, and a negative score means it has a negative sentiment.
+```{r, echo=TRUE}
+#Vectorized version
+all_sentiment <- sapply(reviews$content, calculate_score,)
+
+#Due to memory issues with JVM in the RSentiment package, may have to run the  below version. This version garbage collects so no memory errors occur
+all_sentiment <- c()
+
+for (i in 1:length(reviews$content)) {
+  print(i)
+  all_sentiment <- c(calculate_score(reviews$content[i])[1], all_sentiment)
+  if (i %% 50 == 0) {
+    gc()
+  }
+}
+
+```
+
+Update the dataframe and save it. This will allow us to avoid running the code again.
+```{r, echo=TRUE}
+reviews$sentiment <- all_sentiment
+write.csv(reviews, "sentimentAirport.csv")
+```
+
+Code for comparing to overall rating
+```{r, echo=TRUE}
+
+```
+
+
+
