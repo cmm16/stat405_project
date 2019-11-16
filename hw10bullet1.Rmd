@@ -1,0 +1,61 @@
+---
+title: "Hw10Bullet1"
+author: "Henry Creamer"
+date: "11/16/2019"
+output: pdf_document
+---
+
+```{r, echo=TRUE}
+library(RSQLite)
+dcon <- dbConnect(SQLite(), dbname = "C:/Users/bcard/Documents/SavedStuff/Stat405/group10.db")
+dbListTables(dcon)
+```
+
+Gets the airports with the most outgoing flights.
+```{r, echo=TRUE}
+res <- dbSendQuery(conn = dcon, "
+SELECT ORIGIN, count(*) as c
+FROM flights
+GROUP BY ORIGIN 
+ORDER BY c DESC")
+topOutgoing <- dbFetch(res, -1)
+txairports <- c("ABI", "AUS", "CRP", "DFW", "DAL", "ELP", "GRK", "IAH", "HOU", "LBB", "MAF", "SAT", "ACT", "SPS")
+topOutTexas <- topOutgoing$ORIGIN[topOutgoing$ORIGIN %in% txairports]
+top4Texas <- topOutTexas[1:4]
+top4Texas
+dbClearResult(res)
+```
+
+Queries all of the flight data in for each of the top 4 Texas airports. Each of these 4 dataframes will hold all of the flight data for IAH, AUS, DFW, DAL respectively.
+```{r, echo=TRUE}
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM flights
+WHERE ORIGIN = 'IAH';")
+iahFlights <- dbFetch(res, -1)
+dbClearResult(res)
+
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM flights
+WHERE ORIGIN = 'AUS';")
+ausflights <- dbFetch(res, -1)
+dbClearResult(res)
+
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM flights
+WHERE ORIGIN = 'DFW';")
+dfwFlights <- dbFetch(res, -1)
+dbClearResult(res)
+
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM flights
+WHERE ORIGIN = 'DAL';")
+dalFlights <- dbFetch(res, -1)
+dbClearResult(res)
+```
+
+
+
