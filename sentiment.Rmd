@@ -22,9 +22,9 @@ reviews <- reviews[!is.na(reviews$overall_rating), ]
 topWords <- read.csv("top2kdf.csv")
 ```
 
-Condenses our airport review data by replacing words with a synonym word that occurs a lot. This will allow us to run sentiment analysis more effectively.
+Condenses our airport review data by replacing words with a synonym word that occurs a lot. We targeted words that showed up a lot in the airport reviews. This will allow us to run sentiment analysis more effectively.
 ```{r, echo=TRUE}
-goodWordsToCondense <- c("good", "bad", "flight", "airplane", "experience", "very", "clean", "")
+goodWordsToCondense <- c("good", "bad", "flight", "airplane", "experience", "very", "clean", "move", "bar", "advance", "close", "break", "place", "charge", "drive", "area", "avenue", "full", "fair", "force", "action", "all", "capacity", "character", "go", "great", "individual", "line", "over", "passage", "access", "amount")
 
 for (goodWord in goodWordsToCondense) {
   wordsToReplace <- topWords[topWords$X2 == goodWord | topWords$X3 == goodWord | topWords$X4 == goodWord | topWords$X5 == goodWord | topWords$X6 == goodWord | topWords$X7 == goodWord | topWords$X8 == goodWord | topWords$X9 == goodWord | topWords$X10 == goodWord | topWords$X11 == goodWord, ][2]
@@ -61,8 +61,69 @@ write.csv(reviews, "sentimentAirport.csv")
 
 Code for comparing to overall rating
 ```{r, echo=TRUE}
-
+reviews <- read.csv("C:/Users/bcard/Documents/SavedStuff/Stat405/groupProject/sentimentAirport.csv")
+reviews$sentiment
 ```
+
+Clip sentiment values and assign to new column
+```{r, echo=TRUE, message = FALSE, warning = FALSE}
+library(ramify)
+clipped_vals <- clip(reviews$sentiment, -1, 1)
+reviews$clipped_sentiment <- clipped_vals
+```
+
+Check to see if our sentiment matches the overall rating
+```{r, echo=TRUE, message = FALSE, warning = FALSE}
+reviews$match <- ifelse(( reviews$clipped_sentiment < 0 & reviews$overall_rating < 4) | ( reviews$clipped_sentiment > 0 & reviews$overall_rating > 7 ) | ( reviews$clipped_sentiment==0 & reviews$overall_rating >=4 & reviews$overall_rating <=7), 1, 0)
+head(reviews$match)
+```
+
+Calculate percentage of correct matches we made across indivdual reviews
+```{r, echo=TRUE, message = FALSE, warning = FALSE}
+percentage_correct <- sum(reviews$match / length(reviews$match))
+percentage_correct
+```
+
+Create a pie chart showing the accuracy
+```{r, echo=TRUE, message = FALSE, warning = FALSE}
+slices <- c(percentage_correct, 1-percentage_correct)
+lbls <- c(paste("Number of Correct Matches\n", round(percentage_correct * 100,4),"%"), paste("Number of Incorrect Matches\n", round(((1-percentage_correct)*100),4),"%"))
+pie(slices, labels = lbls, main="Matching Sentiment of Individual Airport Reviews to Overall Ratings", col = c("darkgreen", "red"))
+```
+
+
+Group by airport..
+```{r, echo=TRUE, message = FALSE, warning = FALSE}
+dcon <- dbConnect(SQLite(), dbname = "C:/Users/bcard/Documents/SavedStuff/Stat405/group10.db")
+dbListTables(dcon)
+
+dbWriteTable(dcon, "SentimentTable", reviews)
+dbListFields(dcon, "SentimentTable")
+
+res <- dbSendQuery(conn = dcon, "
+SELECT airport_name as Airport, sum(match) as NumMatches, count(match) as TotalReviews
+FROM SentimentTable
+GROUP BY title;")
+matches_by_airport <- dbFetch(res, -1)
+dbClearResult(res)
+```
+
+Plot the Accuracy by Airport for all major Texas airports
+```{r, echo=TRUE, message = FALSE, warning = FALSE}
+texas_airports <- matches_by_airport[matches_by_airport$Airport == "austin-airport" | matches_by_airport$Airport == "dallas-fort-worth-airport" | matches_by_airport$Airport == "dallas-love-field-airport" | matches_by_airport$Airport == "houston-george-bush-intercontinental-airport" | matches_by_airport$Airport == "houston-hobby-airport" | matches_by_airport$Airport == "el-paso-airport" ,]
+
+a <- 
+value <- texas_airports$TotalReviews
+
+ggplot(data = texas_airports, aes(x=c("A", "A","A","A","A","A"), fill = )) + 
+  geom_bar(stat="identity", fill="orange") + 
+  labs(x="Word", y="Count", title="Top 25 word counts") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, size=12))
+```
+
+https://www.r-graph-gallery.com/48-grouped-barplot-with-ggplot2.html
+
+
 
 
 
