@@ -1,0 +1,93 @@
+---
+title: "Part3_graph1HW10"
+author: "Henry Creamer"
+date: "11/18/2019"
+output: pdf_document
+---
+
+Load the libraries in
+```{r, echo=TRUE, message = FALSE, error = FALSE, warning=FALSE}
+library(RSQLite)
+library(ggplot2)
+library(tidyverse)
+library(grid)
+library(gridBase)
+library(gridExtra)
+grid.newpage()
+```
+
+
+Makes the database connection and fetches the average departure delay by day of the week using a SQL query.
+```{r, echo=TRUE, message = FALSE, error = FALSE}
+dcon <- dbConnect(SQLite(), dbname = "C:/Users/bcard/Documents/SavedStuff/Stat405/group10.db")
+dbListTables(dcon)
+
+res <- dbSendQuery(conn = dcon, "
+SELECT DAY_OF_WEEK, avg(DEP_DELAY)
+FROM flights
+WHERE ORIGIN = 'DFW' 
+GROUP BY DAY_OF_WEEK;")
+avg_delays <- dbFetch(res, -1)
+dbClearResult(res)
+```
+
+Creates the original plot using ggplot. We were curious how the delay time varies across the days of the week. As a result, we plotted the average delay time by day of the week.
+```{r, echo=TRUE, message = FALSE, error = FALSE}
+days <- c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+
+avg_delays$DAY_OF_WEEK <- c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+avg_delays$delayTime <- avg_delays$`avg(DEP_DELAY)`
+avg_delays$DAY_OF_WEEK <- fct_relevel(avg_delays$DAY_OF_WEEK, "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", 
+                            "Saturday", "Sunday")
+
+usingGg <- ggplot(avg_delays, aes(x = DAY_OF_WEEK, y = delayTime, order(days))) + geom_bar(stat = "identity", fill = "red", width = 0.5, color = "black") + 
+  labs(x = "Day of the Week", y = "Average Delay Times (Minutes)", title = "Average Delay Times at DFW Airport by Day of the Week")
+```
+
+
+Function used to recreate the plot using grid.
+```{r, echo=TRUE, message = FALSE, error = FALSE}
+my.grid.plot <- function(vals) {
+  grid.newpage()
+  grid.layout(1,2)
+  top.vp <- viewport(width = 0.8, height = 0.8)
+  pushViewport(top.vp)
+  grid.xaxis(label = FALSE)
+  grid.yaxis(label = FALSE)
+  grid.text("Average Delay Times at DFW Airport by Day of the Week", x=.4,y=1.0)
+  grid.text("Delay Time", x=.00001,y=0.5, just = "right")
+  grid.text("Day of the Week", x = 0.5, y = unit(0, "npc"), just = "top")
+  grid.rect(x = unit(0.2, "npc"), y = unit(0.4, "npc"), width = unit(0.2/3, "npc"),
+            height = unit(vals[1]/15, "npc"),gp=gpar(col="black", fill = "red")) 
+  grid.rect(x = unit(0.3, "npc"), y = unit(0.373, "npc"), width = unit(0.2/3, "npc"),
+            height = unit(vals[2]/15, "npc"),gp=gpar(col="black", fill = "red")) 
+  grid.rect(x = unit(0.4, "npc"), y = unit(0.316, "npc"), width = unit(0.2/3, "npc"),
+            height = unit(vals[3]/15, "npc"),gp=gpar(col="black", fill = "red")) 
+  grid.rect(x = unit(0.5, "npc"), y = unit(0.454, "npc"), width = unit(0.2/3, "npc"),
+            height = unit(vals[4]/15, "npc"),gp=gpar(col="black", fill = "red")) 
+  grid.rect(x = unit(0.6, "npc"), y = unit(0.462, "npc"), width = unit(0.2/3, "npc"),
+            height = unit(vals[5]/15, "npc"),gp=gpar(col="black", fill = "red")) 
+  grid.rect(x = unit(0.7, "npc"), y = unit(0.394, "npc"), width = unit(0.2/3, "npc"),
+            height = unit(vals[6]/15, "npc"),gp=gpar(col="black", fill = "red")) 
+  grid.rect(x = unit(0.8, "npc"), y = unit(0.364, "npc"), width = unit(0.2/3, "npc"),
+            height = unit(vals[7]/15, "npc"),gp=gpar(col="black", fill = "red"))
+  grid.text("Monday", x = unit(0.2, "npc"), y = unit(0.4, "npc"), rot=90)
+  grid.text("Tuesday", x = unit(0.3, "npc"), y = unit(0.373, "npc"), rot = 90)
+  grid.text("Wednesday", x = unit(0.4, "npc"), y = unit(0.316, "npc"), rot = 90)
+  grid.text("Thursday", x = unit(0.5, "npc"), y = unit(0.454, "npc"), rot = 90)
+  grid.text("Friday", x = unit(0.6, "npc"), y = unit(0.462, "npc"), rot = 90)
+  grid.text("Saturday", x = unit(0.7, "npc"), y = unit(0.394, "npc"), rot = 90)
+  grid.text("Sunday", x = unit(0.8, "npc"), y = unit(0.364, "npc"), rot = 90)
+}
+```
+
+Plotting the original plot. (as mentioned in OH, we could not get the plots side-by-side)
+```{r, echo=TRUE, message = FALSE, error = FALSE}
+usingGg
+```
+
+Plotting the recreation of the plot using grid. (as mentioned in OH, we could not get the plots side-by-side)
+```{r, echo=TRUE, message = FALSE, error = FALSE}
+my.grid.plot(avg_delays$delayTime)
+```
+
