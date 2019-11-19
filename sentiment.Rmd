@@ -61,7 +61,7 @@ write.csv(reviews, "sentimentAirport.csv")
 
 Code for comparing to overall rating
 ```{r, echo=TRUE}
-reviews <- read.csv("C:/Users/bcard/Documents/SavedStuff/Stat405/groupProject/sentimentAirport.csv")
+reviews <- read.csv("sentimentAirport.csv")
 reviews$sentiment
 ```
 
@@ -94,7 +94,7 @@ pie(slices, labels = lbls, main="Matching Sentiment of Individual Airport Review
 
 Group by airport..
 ```{r, echo=TRUE, message = FALSE, warning = FALSE}
-dcon <- dbConnect(SQLite(), dbname = "C:/Users/bcard/Documents/SavedStuff/Stat405/group10.db")
+dcon <- dbConnect(SQLite(), dbname = "group10.db")
 dbListTables(dcon)
 
 dbWriteTable(dcon, "SentimentTable", reviews)
@@ -112,7 +112,6 @@ Plot the Accuracy by Airport for all major Texas airports
 ```{r, echo=TRUE, message = FALSE, warning = FALSE}
 texas_airports <- matches_by_airport[matches_by_airport$Airport == "austin-airport" | matches_by_airport$Airport == "dallas-fort-worth-airport" | matches_by_airport$Airport == "dallas-love-field-airport" | matches_by_airport$Airport == "houston-george-bush-intercontinental-airport" | matches_by_airport$Airport == "houston-hobby-airport" | matches_by_airport$Airport == "el-paso-airport" ,]
 
-a <- 
 value <- texas_airports$TotalReviews
 
 ggplot(data = texas_airports, aes(x=c("A", "A","A","A","A","A"), fill = )) + 
@@ -123,7 +122,22 @@ ggplot(data = texas_airports, aes(x=c("A", "A","A","A","A","A"), fill = )) +
 
 https://www.r-graph-gallery.com/48-grouped-barplot-with-ggplot2.html
 
+```{r echo =TRUE}
 
+airport <- c(rep("AUS", texas_airports[1,3]), rep("DFW", texas_airports[2,3]), rep("DAL", texas_airports[3,3]),
+             rep("ELP", texas_airports[4,3]), rep("IAH", texas_airports[5,3]), rep("HOU", texas_airports[6,3]))
+result <- c(rep("success",5), rep("failure",3), rep("success",9), rep("failure",40),
+            rep("failure",3), rep("success",1), rep("failure",2), rep("success",28), rep("failure",69),
+            rep("success",2), rep("failure",2))
+data <- data.frame(airport,result)
+
+ggplot(data, aes(fill=result, x=airport)) + 
+  geom_bar(position="fill") + 
+  xlab("Texas Airports") + 
+  ylab("Number of Reviews") + 
+  ggtitle("Percentage")
+
+```
 
 
 
