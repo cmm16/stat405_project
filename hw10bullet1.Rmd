@@ -7,7 +7,7 @@ output: pdf_document
 
 ```{r, echo=TRUE}
 library(RSQLite)
-dcon <- dbConnect(SQLite(), dbname = "C:/Users/bcard/Documents/SavedStuff/Stat405/group10.db")
+dcon <- dbConnect(SQLite(), dbname = "group10.db")
 dbListTables(dcon)
 ```
 
@@ -27,7 +27,7 @@ dbClearResult(res)
 ```
 
 Queries all of the flight data in for each of the top 4 Texas airports. Each of these 4 dataframes will hold all of the flight data for IAH, AUS, DFW, DAL respectively.
-```{r, echo=TRUE}
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
 res <- dbSendQuery(conn = dcon, "
 SELECT *
 FROM flights
@@ -57,5 +57,60 @@ dalFlights <- dbFetch(res, -1)
 dbClearResult(res)
 ```
 
+Finds and plots top 20 destinations from the four airports in Texas with the most outgoing flights.
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+library(ggplot2)
+library(gridExtra) 
+
+# IAH
+n <- length(sort(table(iahFlights$DEST)))
+top20 <- data.frame(sort(table(iahFlights$DEST))[(n -20):n]) 
+top20names <- as.vector(top20$Var1)
+top20data <- iahFlights[iahFlights$DEST %in% top20names, ]
+p1 <- ggplot() + 
+  geom_bar(data=top20data, aes(DEST), color="black", fill="lightblue") + 
+  theme(axis.text.x=element_text(angle=90, hjust=1, size=9)) +
+  ylab("Number of Flights") + 
+  xlab("Destination") +
+  ggtitle("Top 20 Destinations from IAH")
+
+# AUS
+n <- length(sort(table(ausflights$DEST)))
+top20 <- data.frame(sort(table(ausflights$DEST))[(n -20):n]) 
+top20names <- as.vector(top20$Var1)
+top20data <- ausflights[ausflights$DEST %in% top20names, ]
+p2 <- ggplot() + 
+  geom_bar(data=top20data, aes(DEST), color="black", fill="pink") + 
+  theme(axis.text.x=element_text(angle=90, hjust=1, size=9)) +
+  ylab("Number of Flights") + 
+  xlab("Destination") +
+  ggtitle("Top 20 Destinations from AUS")
+
+# DFW
+n <- length(sort(table(dfwFlights$DEST)))
+top20 <- data.frame(sort(table(dfwFlights$DEST))[(n -20):n]) 
+top20names <- as.vector(top20$Var1)
+top20data <- dfwFlights[dfwFlights$DEST %in% top20names, ]
+p3 <- ggplot() + 
+  geom_bar(data=top20data, aes(DEST), color="black", fill="lightgreen") + 
+  theme(axis.text.x=element_text(angle=90, hjust=1, size=9)) +
+  ylab("Number of Flights") + 
+  xlab("Destination") +
+  ggtitle("Top 20 Destinations from DFW")
+
+# DAL
+n <- length(sort(table(dalFlights$DEST)))
+top20 <- data.frame(sort(table(dalFlights$DEST))[(n -20):n]) 
+top20names <- as.vector(top20$Var1)
+top20data <- dalFlights[dalFlights$DEST %in% top20names, ]
+p4 <- ggplot() + 
+  geom_bar(data=top20data, aes(DEST), color="black", fill="purple") + 
+  theme(axis.text.x=element_text(angle=90, hjust=1, size=9)) +
+  ylab("Number of Flights") + 
+  xlab("Destination") +
+  ggtitle("Top 20 Destinations from DAL")
+
+grid.arrange(p1, p2, p3, p4, nrow = 2)
+```
 
 
