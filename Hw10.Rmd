@@ -633,9 +633,10 @@ print(weekly, vp=vp3)
 
 
 ## Task 3: Replace two ggplots and/or base plots with a version done from scratch using grid and its primitives. 
-For this task, we decided to replace a ggplot of the average delay times at DFW Airport per each day of the week. 
 
-Makes the database connection and fetches the average departure delay by day of the week using a SQL query.
+#### For this task, the first ggplot we decided to replace was a plot of the average delay times at DFW Airport per each day of the week. 
+
+Make the database connection and fetch the average departure delay by day of the week using a SQL query.
 ```{r, echo=TRUE, message = FALSE, error = FALSE}
 res <- dbSendQuery(conn = dcon, "
 SELECT DAY_OF_WEEK, avg(DEP_DELAY)
@@ -646,7 +647,7 @@ avg_delays <- dbFetch(res, -1)
 dbClearResult(res)
 ```
 
-Creates the original plot using ggplot. We were curious how the delay time varies across the days of the week. As a result, we plotted the average delay time by day of the week.
+Here we create the original plot using ggplot. We were curious how the delay time varies across the days of the week so we decided to plot the average delay time by day of the week.
 ```{r, echo=TRUE, message = FALSE, error = FALSE}
 days <- c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 
@@ -658,7 +659,7 @@ usingGg <- ggplot(avg_delays, aes(x = DAY_OF_WEEK, y = delayTime, order(days))) 
   labs(x = "Day of the Week", y = "Average Delay Times (Minutes)", title = "Average Delay Times at DFW Airport by Day of the Week")
 ```
 
-Function used to recreate the plot using grid.
+Function to recreate the plot using grid.
 ```{r, echo=TRUE, message = FALSE, error = FALSE}
 my.grid.plot <- function(vals) {
   grid.newpage()
@@ -703,6 +704,96 @@ Plotting the recreation of the plot using grid. (as mentioned in OH, we could no
 ```{r, echo=TRUE, message = FALSE, error = FALSE}
 my.grid.plot(avg_delays$delayTime)
 ```
+
+
+#### The second ggplot we decided to replace was a plot of the empty seats per month for all the flights out of IAH. 
+
+```{r, echo=TRUE, message = FALSE, error = FALSE}
+res <- dbSendQuery(conn=dcon, "
+SELECT MONTH, SUM(SEATS) as CAPACITY, SUM(PASSENGERS) as FILLED
+FROM passengers 
+where ORIGIN == 'IAH'
+group by MONTH;
+")
+seats <- dbFetch(res, -1)
+dbClearResult(res)
+head(seats)
+```
+
+Create a dataframe for 2018 months and the number of empty seats.
+```{r, echo=TRUE, message = FALSE, error = FALSE}
+seats['EMPTY'] = seats$CAPACITY - seats$FILLED
+head(seats)
+```
+
+Create the original plot using ggplot. 
+```{r, echo=TRUE, message = FALSE, error = FALSE}
+usingGg <- ggplot(data=seats, aes(x=seats$MONTH, y=seats$EMPTY, group=1)) +
+  geom_line()+
+  geom_point() + labs(title = "Empty Seats per Month from IAH", x= "Month", y = "Number of Empty Seats")
+```
+
+Function to recreate the plot using grid.
+```{r, echo=TRUE, message = FALSE, error = FALSE}
+my.grid.plot2 <- function(vals) {
+  grid.newpage()
+  grid.layout(1,2)
+  top.vp <- viewport(width = 0.8, height = 0.8)
+  pushViewport(top.vp)
+  grid.xaxis(label = FALSE)
+  grid.yaxis(label = FALSE)
+  grid.text("Empty Seats per Month from IAH", x=.4,y=1.0)
+  grid.text("Number of Empty Seats", x=-0.05,y=0.5, just = "right",rot=90)
+  grid.text("Month", x = 0.5, y = unit(-0.05, "npc"), just = "top")
+  grid.points(x = unit(0.07, "npc"), y = unit(0.75, "npc"),size = unit(0.5, "char"))
+  grid.points(x = unit(0.14, "npc"), y = unit(0.55, "npc"),size = unit(0.5, "char"))
+  grid.points(x = unit(0.21, "npc"), y = unit(0.50, "npc"),size = unit(0.5, "char"))
+  grid.points(x = unit(0.28, "npc"), y = unit(0.40, "npc"),size = unit(0.5, "char"))
+  grid.points(x = unit(0.35, "npc"), y = unit(0.38, "npc"),size = unit(0.5, "char"))
+  grid.points(x = unit(0.42, "npc"), y = unit(0.1, "npc"),size = unit(0.5, "char"))
+  grid.points(x = unit(0.49, "npc"), y = unit(0.15, "npc"),size = unit(0.5, "char"))
+  grid.points(x = unit(0.56, "npc"), y = unit(0.60, "npc"),size = unit(0.5, "char"))
+  grid.points(x = unit(0.63, "npc"), y = unit(0.85, "npc"),size = unit(0.5, "char"))
+  grid.points(x = unit(0.70, "npc"), y = unit(0.67, "npc"),size = unit(0.5, "char"))
+  grid.points(x = unit(0.77, "npc"), y = unit(0.50, "npc"),size = unit(0.5, "char"))
+  grid.points(x = unit(0.84, "npc"), y = unit(0.70, "npc"),size = unit(0.5, "char"))
+  grid.lines(x = unit(c(0.07, 0.14), "npc"),y = unit(c(0.75, 0.55), "npc"))
+  grid.lines(x = unit(c(0.14, 0.21), "npc"),y = unit(c(0.55, 0.50), "npc"))
+  grid.lines(x = unit(c(0.21, 0.28), "npc"),y = unit(c(0.50, 0.40), "npc"))
+  grid.lines(x = unit(c(0.28, 0.35), "npc"),y = unit(c(0.40, 0.38), "npc"))
+  grid.lines(x = unit(c(0.35, 0.42), "npc"),y = unit(c(0.38, 0.1), "npc"))
+  grid.lines(x = unit(c(0.42, 0.49), "npc"),y = unit(c(0.1, 0.15), "npc"))
+  grid.lines(x = unit(c(0.49, 0.56), "npc"),y = unit(c(0.15, 0.60), "npc"))
+  grid.lines(x = unit(c(0.56, 0.63), "npc"),y = unit(c(0.60, 0.85), "npc"))
+  grid.lines(x = unit(c(0.63, 0.70), "npc"),y = unit(c(0.85, 0.67), "npc"))
+  grid.lines(x = unit(c(0.70, 0.77), "npc"),y = unit(c(0.67, 0.50), "npc"))
+  grid.lines(x = unit(c(0.77, 0.84), "npc"),y = unit(c(0.50, 0.7), "npc"))
+  grid.text("Jan", x = unit(0.07, "npc"), y = unit(0.75-0.05, "npc"),gp = gpar(fontsize = 6))
+  grid.text("Feb", x = unit(0.14, "npc"), y = unit(0.55+0.05, "npc"),gp = gpar(fontsize = 6))
+  grid.text("Mar", x = unit(0.21, "npc"), y = unit(0.50-0.04, "npc"),gp = gpar(fontsize = 6))
+  grid.text("Apr", x = unit(0.28, "npc"), y = unit(0.40+0.05, "npc"),gp = gpar(fontsize = 6))
+  grid.text("May", x = unit(0.35, "npc"), y = unit(0.38+0.05, "npc"),gp = gpar(fontsize = 6))
+  grid.text("Jun", x = unit(0.42, "npc"), y = unit(0.1-0.05, "npc"),gp = gpar(fontsize = 6))
+  grid.text("July", x = unit(0.49, "npc"), y = unit(0.15-0.05, "npc"),gp = gpar(fontsize = 6))
+  grid.text("Aug", x = unit(0.57, "npc"), y = unit(0.60-0.03, "npc"),gp = gpar(fontsize = 6))
+  grid.text("Sep", x = unit(0.63, "npc"), y = unit(0.85-0.05, "npc"),gp = gpar(fontsize = 6))
+  grid.text("Oct", x = unit(0.70, "npc"), y = unit(0.67-0.05, "npc"),gp = gpar(fontsize = 6))
+  grid.text("Nov", x = unit(0.77, "npc"), y = unit(0.50-0.04, "npc"),gp = gpar(fontsize = 6))
+  grid.text("Dec", x = unit(0.85, "npc"), y = unit(0.7-0.03, "npc"),gp = gpar(fontsize = 6))
+}
+```
+
+Plotting the original plot. (as mentioned in OH, we could not get the plots side-by-side)
+```{r, echo=TRUE, message = FALSE, error = FALSE}
+usingGg
+```
+
+Plotting the recreation of the plot using grid. (as mentioned in OH, we could not get the plots side-by-side)
+```{r, echo=TRUE, message = FALSE, error = FALSE}
+my.grid.plot2(seats$EMPTY)
+```
+
+
 
 ## Draft of Original Visualization (killer plot)
 Here is the rough draft of what we would like our final killer, original visualization plot to look like. The plot will take the shape of a luggage. Each dot in the luggage represents an airport a flight from IAH flies to. The size of the dot represents the number of people that are transported there; the more people, the bigger the dot. The color of the dot represents the sentiment traveller have towards the airport, with red being a negative experience and green being a positive experience. The lines between the dots represent the number of flights between those two airports; the thicker the line, the more flights. The legend of the plot will be included in the luggage tag, to give information about the luggage contents as luggage tags are intended to do. 

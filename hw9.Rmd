@@ -18,6 +18,14 @@ dcon <- dbConnect(SQLite(), dbname = "group10.db")
 dbListTables(dcon)
 ```
 
+```{r, echo=TRUE,warning=FALSE, message=FALSE}
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM flights;")
+flights <- dbFetch(res, -1)
+dbClearResult(res)
+```
+
 Query all of the flight review data into a data frame.
 ```{r, echo=TRUE,warning=FALSE, message=FALSE}
 res <- dbSendQuery(conn = dcon, "
