@@ -7,7 +7,7 @@ output: pdf_document
 #### Group Members 
 Melinda Ding (mjd4), Henry Creamer (hmc5), Caleigh Page (cap9), Aaryan Jadhav (aj52), Cole Morgan (cmm16)
 
-```{r, echo=TRUE, warning=FALSE, message=FALSE}
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
 library(RSQLite)
 library(ggplot2)
 library(tidyverse)
@@ -18,14 +18,12 @@ library(dplyr)
 library(prophet)
 
 dcon <- dbConnect(SQLite(), dbname = "./group10.db")
-dbListTables(dcon)
 ```
 
 ## Task 1: Combine related plots into one visualization
 For the first task, we decided to create a plot of the number of flights going to the top 20 destinations from Houston, Austin, Dallas DFW and Dallas DAl. 
 
-Query the airports with the most outgoing flights.
-```{r, echo=TRUE}
+```{r, echo=FALSE}
 res <- dbSendQuery(conn = dcon, "
 SELECT ORIGIN, count(*) as c
 FROM flights
@@ -39,8 +37,7 @@ top4Texas
 dbClearResult(res)
 ```
 
-Queries all of the flight data in for each of the top 4 Texas airports. Each of these 4 dataframes will hold all of the flight data for IAH, AUS, DFW, DAL respectively.
-```{r, echo=TRUE, warning=FALSE, message=FALSE}
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
 res <- dbSendQuery(conn = dcon, "
 SELECT *
 FROM flights
@@ -70,8 +67,7 @@ dalFlights <- dbFetch(res, -1)
 dbClearResult(res)
 ```
 
-Finds and plots top 20 destinations from the four airports in Texas with the most outgoing flights.
-```{r, echo=TRUE, warning=FALSE, message=FALSE}
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
 # IAH
 n <- length(sort(table(iahFlights$DEST)))
 top20 <- data.frame(sort(table(iahFlights$DEST))[(n -20):n]) 
@@ -124,11 +120,11 @@ grid.arrange(p1, p2, p3, p4, nrow = 2)
 ```
 
 
-
+\newpage 
 ## Task 2: Embed other plots into a plot with empty space 
 For this task, we decided to display time series analysis on our flight data. We first calculated the number of flights per month out of IAH and realized there is a lot of whitespace around this plot. We then added a plot of the number of flights per day out of IAH and a plot of the number of flights per day of week out of IAH to the white spaces in the plot of the number of flights per month out of IAH. 
 
-```{r, echo=TRUE,warning=FALSE, message=FALSE}
+```{r, echo=FALSE, warning=FALSE, message=FALSE, error=FALSE}
 res <- dbSendQuery(conn=dcon, "
 SELECT ORIGIN, MONTH, DAY_OF_MONTH, count(*) as count
 FROM flights 
@@ -137,16 +133,17 @@ group by MONTH, DAY_OF_MONTH;
 ")
 df4b <- dbFetch(res, -1)
 dbClearResult(res)
-head(df4b)
 ```
 
-```{r, echo=TRUE, message = FALSE, error = FALSE}
+```{r, echo=FALSE, message = FALSE, error = FALSE}
 times <- as.POSIXct(24*3600 * 0:364, origin = '2018-01-01', tz = "GMT")
 df <- data.frame("ds" = times, "y" = df4b$count)
 m <- prophet(df)
 future <- make_future_dataframe(m, periods = 20)
 forecast <- predict(m, future)
+```
 
+```{r, echo=FALSE, message = FALSE, error = FALSE}
 df_for_plotting <- function(m, fcst) {
   # Make sure there is no y in fcst
   fcst$y <- NULL
@@ -175,7 +172,7 @@ seasonality_plot_df <- function(m, ds) {
 }
 ```
 
-```{r, echo=TRUE, message = FALSE, error = FALSE}
+```{r, echo=FALSE, message = FALSE, error = FALSE}
 ##### WEEKLY PLOT #####
 plot_weekly <- function(m, uncertainty = TRUE, weekly_start = 0, 
                         name = 'weekly') {
@@ -216,7 +213,7 @@ plot_weekly <- function(m, uncertainty = TRUE, weekly_start = 0,
 df <- df_for_plotting(m, forecast)
 ``` 
 
-```{r, echo=TRUE, message = FALSE, error = FALSE}
+```{r, echo=FALSE, message = FALSE, error = FALSE}
 ##### DAILY PLOT #####
 plot.prophet <- function(x, fcst, uncertainty = TRUE, plot_cap = TRUE,
                          xlabel = 'ds', ylabel = 'y', ...) {
@@ -251,7 +248,7 @@ plot.prophet <- function(x, fcst, uncertainty = TRUE, plot_cap = TRUE,
 
 ```
 
-```{r, echo=TRUE, message = FALSE, error = FALSE}
+```{r, echo=FALSE, message = FALSE, error = FALSE}
 ##### MONTHLY PLOT #####
 plot_forecast_component <- function(
   m, fcst, name, uncertainty = TRUE, plot_cap = FALSE
@@ -286,7 +283,7 @@ plot_forecast_component <- function(
 }
 ```
 
-```{r, echo=TRUE, message = FALSE, error = FALSE}
+```{r, echo=FALSE, message = FALSE, error = FALSE}
 set_date <- function(ds = NULL, tz = "GMT") {
   if (length(ds) == 0) {
     return(NULL)
@@ -616,7 +613,7 @@ add_group_component <- function(components, name, group) {
 }
 ```
 
-```{r, echo=TRUE, message = FALSE, error = FALSE}
+```{r, echo = FALSE, message = FALSE, error = FALSE, warning=FALSE}
 daily <- plot.prophet(m, forecast)
 monthly <- plot_forecast_component(m, forecast, "trend")
 weekly <- plot_weekly(m)
@@ -636,8 +633,7 @@ print(weekly, vp=vp3)
 
 #### For this task, the first ggplot we decided to replace was a plot of the average delay times at DFW Airport per each day of the week. 
 
-Make the database connection and fetch the average departure delay by day of the week using a SQL query.
-```{r, echo=TRUE, message = FALSE, error = FALSE}
+```{r, echo=FALSE, message = FALSE, error = FALSE}
 res <- dbSendQuery(conn = dcon, "
 SELECT DAY_OF_WEEK, avg(DEP_DELAY)
 FROM flights
@@ -647,20 +643,24 @@ avg_delays <- dbFetch(res, -1)
 dbClearResult(res)
 ```
 
-Here we create the original plot using ggplot. We were curious how the delay time varies across the days of the week so we decided to plot the average delay time by day of the week.
-```{r, echo=TRUE, message = FALSE, error = FALSE}
+```{r, echo=FALSE, message = FALSE, error = FALSE}
 days <- c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 
-avg_delays$DAY_OF_WEEK <- c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+avg_delays$DAY_OF_WEEK <- c("Monday", "Tuesday", "Wednesday", 
+                            "Thursday", "Friday", "Saturday", "Sunday")
 avg_delays$delayTime <- avg_delays$`avg(DEP_DELAY)`
-avg_delays$DAY_OF_WEEK <- fct_relevel(avg_delays$DAY_OF_WEEK, "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+avg_delays$DAY_OF_WEEK <- fct_relevel(avg_delays$DAY_OF_WEEK, "Monday", "Tuesday", 
+                                      "Wednesday", "Thursday", "Friday", 
+                                      "Saturday", "Sunday")
 
-usingGg <- ggplot(avg_delays, aes(x = DAY_OF_WEEK, y = delayTime, order(days))) + geom_bar(stat = "identity", fill = "red", width = 0.5, color = "black") + 
-  labs(x = "Day of the Week", y = "Average Delay Times (Minutes)", title = "Average Delay Times at DFW Airport by Day of the Week")
+usingGg <- ggplot(avg_delays, aes(x = DAY_OF_WEEK, y = delayTime, order(days))) + 
+  geom_bar(stat = "identity", fill = "red", width = 0.5, color = "black") + 
+  labs(x = "Day of the Week", 
+       y = "Average Delay Times (Minutes)", 
+       title = "Average Delay Times at DFW Airport by Day of the Week")
 ```
 
-Function to recreate the plot using grid.
-```{r, echo=TRUE, message = FALSE, error = FALSE}
+```{r, echo=FALSE, message = FALSE, error = FALSE}
 my.grid.plot <- function(vals) {
   grid.newpage()
   grid.layout(1,2)
@@ -695,7 +695,7 @@ my.grid.plot <- function(vals) {
 }
 ```
 
-Plotting the original plot. (as mentioned in OH, we could not get the plots side-by-side)
+Plotting the original plot using ggplot. (as mentioned in OH, we could not get the plots side-by-side)
 ```{r, echo=TRUE, message = FALSE, error = FALSE}
 usingGg
 ```
@@ -708,7 +708,7 @@ my.grid.plot(avg_delays$delayTime)
 
 #### The second ggplot we decided to replace was a plot of the empty seats per month for all the flights out of IAH. 
 
-```{r, echo=TRUE, message = FALSE, error = FALSE}
+```{r, echo=FALSE, message = FALSE, error = FALSE}
 res <- dbSendQuery(conn=dcon, "
 SELECT MONTH, SUM(SEATS) as CAPACITY, SUM(PASSENGERS) as FILLED
 FROM passengers 
@@ -717,24 +717,16 @@ group by MONTH;
 ")
 seats <- dbFetch(res, -1)
 dbClearResult(res)
-head(seats)
-```
-
-Create a dataframe for 2018 months and the number of empty seats.
-```{r, echo=TRUE, message = FALSE, error = FALSE}
 seats['EMPTY'] = seats$CAPACITY - seats$FILLED
-head(seats)
 ```
 
-Create the original plot using ggplot. 
-```{r, echo=TRUE, message = FALSE, error = FALSE}
+```{r, echo=FALSE, message = FALSE, error = FALSE}
 usingGg <- ggplot(data=seats, aes(x=seats$MONTH, y=seats$EMPTY, group=1)) +
   geom_line()+
   geom_point() + labs(title = "Empty Seats per Month from IAH", x= "Month", y = "Number of Empty Seats")
 ```
 
-Function to recreate the plot using grid.
-```{r, echo=TRUE, message = FALSE, error = FALSE}
+```{r, echo=FALSE, message = FALSE, error = FALSE}
 my.grid.plot2 <- function(vals) {
   grid.newpage()
   grid.layout(1,2)
@@ -768,22 +760,22 @@ my.grid.plot2 <- function(vals) {
   grid.lines(x = unit(c(0.63, 0.70), "npc"),y = unit(c(0.85, 0.67), "npc"))
   grid.lines(x = unit(c(0.70, 0.77), "npc"),y = unit(c(0.67, 0.50), "npc"))
   grid.lines(x = unit(c(0.77, 0.84), "npc"),y = unit(c(0.50, 0.7), "npc"))
-  grid.text("Jan", x = unit(0.07, "npc"), y = unit(0.75-0.05, "npc"),gp = gpar(fontsize = 6))
-  grid.text("Feb", x = unit(0.14, "npc"), y = unit(0.55+0.05, "npc"),gp = gpar(fontsize = 6))
-  grid.text("Mar", x = unit(0.21, "npc"), y = unit(0.50-0.04, "npc"),gp = gpar(fontsize = 6))
-  grid.text("Apr", x = unit(0.28, "npc"), y = unit(0.40+0.05, "npc"),gp = gpar(fontsize = 6))
-  grid.text("May", x = unit(0.35, "npc"), y = unit(0.38+0.05, "npc"),gp = gpar(fontsize = 6))
-  grid.text("Jun", x = unit(0.42, "npc"), y = unit(0.1-0.05, "npc"),gp = gpar(fontsize = 6))
-  grid.text("July", x = unit(0.49, "npc"), y = unit(0.15-0.05, "npc"),gp = gpar(fontsize = 6))
-  grid.text("Aug", x = unit(0.57, "npc"), y = unit(0.60-0.03, "npc"),gp = gpar(fontsize = 6))
-  grid.text("Sep", x = unit(0.63, "npc"), y = unit(0.85-0.05, "npc"),gp = gpar(fontsize = 6))
-  grid.text("Oct", x = unit(0.70, "npc"), y = unit(0.67-0.05, "npc"),gp = gpar(fontsize = 6))
-  grid.text("Nov", x = unit(0.77, "npc"), y = unit(0.50-0.04, "npc"),gp = gpar(fontsize = 6))
-  grid.text("Dec", x = unit(0.85, "npc"), y = unit(0.7-0.03, "npc"),gp = gpar(fontsize = 6))
+  grid.text("Jan", x=unit(0.07, "npc"), y=unit(0.75-0.05, "npc"), gp=gpar(fontsize=6))
+  grid.text("Feb", x=unit(0.14, "npc"), y=unit(0.55+0.05, "npc"), gp=gpar(fontsize=6))
+  grid.text("Mar", x=unit(0.21, "npc"), y=unit(0.50-0.04, "npc"), gp=gpar(fontsize=6))
+  grid.text("Apr", x=unit(0.28, "npc"), y=unit(0.40+0.05, "npc"), gp=gpar(fontsize=6))
+  grid.text("May", x=unit(0.35, "npc"), y=unit(0.38+0.05, "npc"), gp=gpar(fontsize=6))
+  grid.text("Jun", x=unit(0.42, "npc"), y=unit(0.1-0.05, "npc"), gp=gpar(fontsize=6))
+  grid.text("July", x=unit(0.49, "npc"), y=unit(0.15-0.05, "npc"), gp=gpar(fontsize=6))
+  grid.text("Aug", x=unit(0.57, "npc"), y=unit(0.60-0.03, "npc"), gp=gpar(fontsize=6))
+  grid.text("Sep", x=unit(0.63, "npc"), y=unit(0.85-0.05, "npc"), gp=gpar(fontsize=6))
+  grid.text("Oct", x=unit(0.70, "npc"), y=unit(0.67-0.05, "npc"), gp=gpar(fontsize=6))
+  grid.text("Nov", x=unit(0.77, "npc"), y=unit(0.50-0.04, "npc"), gp=gpar(fontsize=6))
+  grid.text("Dec", x=unit(0.85, "npc"), y=unit(0.7-0.03, "npc"), gp=gpar(fontsize=6))
 }
 ```
 
-Plotting the original plot. (as mentioned in OH, we could not get the plots side-by-side)
+Plotting the original plot using ggplot. (as mentioned in OH, we could not get the plots side-by-side)
 ```{r, echo=TRUE, message = FALSE, error = FALSE}
 usingGg
 ```
@@ -794,7 +786,7 @@ my.grid.plot2(seats$EMPTY)
 ```
 
 
-
+\newpage 
 ## Draft of Original Visualization (killer plot)
 Here is the rough draft of what we would like our final killer, original visualization plot to look like. The plot will take the shape of a luggage. Each dot in the luggage represents an airport a flight from IAH flies to. The size of the dot represents the number of people that are transported there; the more people, the bigger the dot. The color of the dot represents the sentiment traveller have towards the airport, with red being a negative experience and green being a positive experience. The lines between the dots represent the number of flights between those two airports; the thicker the line, the more flights. The legend of the plot will be included in the luggage tag, to give information about the luggage contents as luggage tags are intended to do. 
 ![Killer Plot Image Draft](./KillerPlot.png)
