@@ -1,0 +1,153 @@
+---
+title: "KillerPlot1"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### Group Members 
+Melinda Ding (mjd4), Henry Creamer (hmc5), Caleigh Page (cap9), Aaryan Jadhav (aj52), Cole Morgan (cmm16)
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+library(RSQLite)
+library(ggplot2)
+library(tidyverse)
+library(grid)
+library(gridBase)
+library(gridExtra)
+library(dplyr)
+
+dcon <- dbConnect(SQLite(), dbname = "./group10.db")
+dbListTables(dcon)
+```
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+# Count number of flights, passengers, and seats per airline out of IAH 
+res <- dbSendQuery(conn = dcon, "
+SELECT UNIQUE_CARRIER_NAME, count(*) as count, sum(PASSENGERS) as passenger_count, sum(SEATS) as capacity
+FROM passengers
+WHERE ORIGIN = 'IAH'
+GROUP BY UNIQUE_CARRIER_NAME
+ORDER BY passenger_count;")
+airlines <- dbFetch(res, -1)
+dbClearResult(res)
+airlines
+```
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+# Count number of ppl that go to each airport from IAH 
+res <- dbSendQuery(conn = dcon, "
+SELECT DEST as dest, SUM(PASSENGERS) as passenger_count
+FROM passengers
+WHERE ORIGIN = 'IAH'
+GROUP BY DEST;")
+iahPassengers <- dbFetch(res, -1)
+dbClearResult(res)
+head(iahPassengers)
+```
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+# Get top 10 destinations out of IAH
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM flights2018
+WHERE ORIGIN = 'IAH';")
+iahFlights <- dbFetch(res, -1)
+dbClearResult(res)
+
+n <- length(sort(table(iahFlights$DEST)))
+top10 <- data.frame(sort(table(iahFlights$DEST))[(n -10):n]) 
+top10names <- as.vector(top10$Var1)
+
+# Get count of number of flights out of IAH to each DEST
+# , DISTANCE as distance
+res <- dbSendQuery(conn = dcon, "
+SELECT DEST as dest, COUNT(*) as flight_count
+FROM flights2018
+WHERE ORIGIN = 'IAH'
+GROUP BY DEST;")
+iahFlightCount <- dbFetch(res, -1)
+dbClearResult(res)
+top10FlightCount = iahFlightCount[iahFlightCount$dest %in% top10names,]
+top10FlightCount
+```
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+# Get average rating from passengers
+res <- dbSendQuery(conn = dcon, "
+SELECT airport_code as dest, airport_name, AVG(overall_rating) as average_rating, AVG(clipped_sentiment) as review_rating
+FROM sentiment
+GROUP BY airport_name;")
+raw_reviews <- dbFetch(res, -1)
+dbClearResult(res)
+reviews = raw_reviews[raw_reviews$dest %in% top10names,]
+reviews
+```
+
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+# Join all the data together 
+join1 = merge(iahPassengers, top10FlightCount, by="dest")
+alldata = data.frame(merge(join1, reviews, by="dest"))
+alldata
+# write.csv(alldata, "KillerPlotData.csv")
+```
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+# Data preparation for graphing 
+alldata$passenger_count_regularized = (alldata$passenger_count/(max(alldata$passenger_count)*15))
+alldata
+# write.csv(alldata, "KillerPlotData.csv")
+```
+
+# STARTING POINT HERE 
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+alldata = read.csv("KillerPlotData.csv")
+```
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+plot_node <- function(radius, rating, sentiment, idx) {
+  # TODO calculate distance
+  # Cutoff threshold is 5 because ratings can range from 1 to 10 
+  fillColor = ifelse(rating[idx] > 5.0, "green", "red")
+  # Cutoff threshold is 0.0 because ratings can range from -1 to 1 
+  outlineColor = ifelse(sentiment[idx] > 0.0, "green", "red") 
+  grid.circle(x = unit(0+idx/10, "npc"), y = unit(0.45, "npc"), r = unit(radius[idx], "npc"), 
+              gp = gpar(fill = fillColor, col = outlineColor, lwd = 3))
+  
+}
+
+# KILLER PLOT CODE 
+my.grid.plot <- function(data){
+  grid.newpage()
+  grid.layout(1,2)
+  top.vp <- viewport(width = 1.0, height = 1.0)
+  pushViewport(top.vp)
+  grid.rect(x = unit(0.5, "npc"), y = unit(0.40, "npc"), width = unit(0.80, "npc"), 
+            height = unit(0.70, "npc"), gp = gpar(lwd = 4))
+  grid.lines(x = unit(c(0.25, 0.25), "npc"),y = unit(c(0.75, 0.92), "npc"), gp = gpar(lwd = 4))
+  grid.lines(x = unit(c(0.75, 0.75), "npc"),y = unit(c(0.75, 0.92), "npc"), gp = gpar(lwd = 4))
+  grid.lines(x = unit(c(0.25, 0.75), "npc"),y = unit(c(0.92, 0.92), "npc"), gp = gpar(lwd = 4))
+  grid.lines(x = unit(c(0.30, 0.30), "npc"),y = unit(c(0.75, 0.85), "npc"), gp = gpar(lwd = 4))
+  grid.lines(x = unit(c(0.70, 0.70), "npc"),y = unit(c(0.75, 0.85), "npc"), gp = gpar(lwd = 4))
+  grid.lines(x = unit(c(0.30, 0.70), "npc"),y = unit(c(0.85, 0.85), "npc"), gp = gpar(lwd = 4))
+  grid.lines(x = unit(c(0.70, 0.80), "npc"),y = unit(c(0.80, 0.70), "npc"), gp = gpar(lwd = 6))
+  grid.rect(x = unit(0.78, "npc"), y = unit(0.60, "npc"), width = unit(0.2, "npc"), 
+            height = unit(0.25, "npc"), gp = gpar(lwd = 4))
+  
+  # Create Nodes 
+  radius= data$passenger_count_regularized
+  rating = data$average_rating
+  sentiment = data$review_rating
+  for (i in 1:10){
+    plot_node(radius, rating, sentiment, i)
+  }
+}
+```
+
+```{r, echo=TRUE, message = FALSE, error = FALSE}
+my.grid.plot(alldata)
+```
