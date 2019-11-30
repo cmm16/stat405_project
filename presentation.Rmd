@@ -1,0 +1,81 @@
+---
+title: "Group 10"
+author: "Henry Creamer, Melinda Ding, Aaryan Jadhav, Cole Morgan, Caleigh Page"
+date: "December 6, 2019"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+## Introduction
+
+RESEARCH QUESTION 
+
+- What are the most popular destinations from IAH? 
+- How have flight patterns out of IAH changed over time? 
+
+METHODOLOGY 
+
+- Gathered and cleaned data 
+- Explored data 
+- Created killer plot to summarize findings
+
+
+## Data Sets 
+Flight Data 
+
+- Have years 2018, 2017, and 2016 
+- Source: Bureau of Transportation Statistics 
+- Attributes: Year, month, day, day of the week, airline id, tail number, flight number, origin, origin city, dest, dest city, expected departure time, departure time, departure delay, arrival delay, cancelled (bool), carrier delay (bool), weather delay (bool)
+
+## Data Sets 
+PASSENGER DATA
+
+- For 2018
+- Source: Bureau of Transportation Statistics 
+- Attributes: seats, passengers, unique_carrier, origin, origin_city, origin_state, dest, dest_city, dest_state, aircraft_type, class (only passenger)
+
+## Data Sets 
+REVIEWS DATA
+
+- For 2018
+- Source: 
+- Attributes: airport_name, link, title, author, author_country, date, content, experience_airport, date_visit, type_traveller, overall_rating, queing_rating, terminal_cleanliness_rating, terminal_seating_rating, food_beverages_rating, airport_shopping_rating, wifi_connectivity_rating, airport_staff_rating, recommended 
+
+## Data Sets 
+SENTIMENT DATA
+
+- First compiled a list of the top 2,000 words across all airport reviews 
+- Scraped 10 synonyms for each word in the top 2,000 words from thesaurus.com
+- Attributes: word, synonym1, synonym2, synonym3, synonym4, synonym5, synonym6, synonym7, synonym8, synonym9, synonym10 
+
+## Data Preparation 
+
+- Filter to origin is IAH 
+- grouped by?
+
+
+
+
+## Slide with R Output
+
+```{r cars, echo = TRUE}
+summary(cars)
+```
+
+## Slide with Plot
+
+```{r pressure}
+plot(pressure)
+```
+
+## {.flexbox .vcenter}
+<div class="centered">
+  <font size="8">Thanks!</font> 
+  
+  Any questions? 
+</div>
+
