@@ -62,11 +62,10 @@ top10 <- data.frame(sort(table(iahFlights$DEST))[(n -10):n])
 top10names <- as.vector(top10$Var1)
 
 # Get count of number of flights out of IAH to each DEST
-# , DISTANCE as distance
 res <- dbSendQuery(conn = dcon, "
-SELECT DEST as dest, COUNT(*) as flight_count
-FROM flights2018
-WHERE ORIGIN = 'IAH'
+SELECT DEST as dest, COUNT(*) as flight_count, DISTANCE as distance
+FROM flights
+WHERE ORIGIN = 'IAH' and YEAR = 2018
 GROUP BY DEST;")
 iahFlightCount <- dbFetch(res, -1)
 dbClearResult(res)
@@ -92,12 +91,12 @@ reviews
 join1 = merge(iahPassengers, top10FlightCount, by="dest")
 alldata = data.frame(merge(join1, reviews, by="dest"))
 alldata
-# write.csv(alldata, "KillerPlotData.csv")
 ```
 
 ```{r, echo=TRUE, warning=FALSE, message=FALSE}
 # Data preparation for graphing 
 alldata$passenger_count_regularized = (alldata$passenger_count/(max(alldata$passenger_count)*15))
+alldata$flight_count_regularized = (alldata$flight_count/(max(alldata$flight_count)/5))
 alldata
 # write.csv(alldata, "KillerPlotData.csv")
 ```
@@ -109,23 +108,26 @@ alldata = read.csv("KillerPlotData.csv")
 ```
 
 ```{r, echo=TRUE, warning=FALSE, message=FALSE}
-plot_node <- function(radius, rating, sentiment, idx) {
-  # TODO calculate distance
+plot_node <- function(radius, rating, X, Y, sentiment, idx) {
   # Cutoff threshold is 5 because ratings can range from 1 to 10 
   fillColor = ifelse(rating[idx] > 5.0, "green", "red")
   # Cutoff threshold is 0.0 because ratings can range from -1 to 1 
   outlineColor = ifelse(sentiment[idx] > 0.0, "green", "red") 
-  grid.circle(x = unit(0+idx/10, "npc"), y = unit(0.45, "npc"), r = unit(radius[idx], "npc"), 
+  grid.circle(x = unit(X[idx], "npc"), y = unit(Y[idx], "npc"), r = unit(radius[idx], "npc"),
               gp = gpar(fill = fillColor, col = outlineColor, lwd = 3))
-  
 }
+```
 
-# KILLER PLOT CODE 
-my.grid.plot <- function(data){
-  grid.newpage()
-  grid.layout(1,2)
-  top.vp <- viewport(width = 1.0, height = 1.0)
-  pushViewport(top.vp)
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+label_nodes <- function(labels, X, Y) {
+  for (i in 1:10){
+    grid.text(labels[i], x = unit(X[i], "npc"), y = unit(Y[i], "npc"), gp = gpar(fontsize = 7))
+  }
+}
+```
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+plot_luggage <- function() {
   grid.rect(x = unit(0.5, "npc"), y = unit(0.40, "npc"), width = unit(0.80, "npc"), 
             height = unit(0.70, "npc"), gp = gpar(lwd = 4))
   grid.lines(x = unit(c(0.25, 0.25), "npc"),y = unit(c(0.75, 0.92), "npc"), gp = gpar(lwd = 4))
@@ -134,16 +136,76 @@ my.grid.plot <- function(data){
   grid.lines(x = unit(c(0.30, 0.30), "npc"),y = unit(c(0.75, 0.85), "npc"), gp = gpar(lwd = 4))
   grid.lines(x = unit(c(0.70, 0.70), "npc"),y = unit(c(0.75, 0.85), "npc"), gp = gpar(lwd = 4))
   grid.lines(x = unit(c(0.30, 0.70), "npc"),y = unit(c(0.85, 0.85), "npc"), gp = gpar(lwd = 4))
-  grid.lines(x = unit(c(0.70, 0.80), "npc"),y = unit(c(0.80, 0.70), "npc"), gp = gpar(lwd = 6))
-  grid.rect(x = unit(0.78, "npc"), y = unit(0.60, "npc"), width = unit(0.2, "npc"), 
-            height = unit(0.25, "npc"), gp = gpar(lwd = 4))
+  grid.text("Airport Analysis of Top 10 Destinations out of IAH", x = unit(0.50, "npc"), 
+            y = unit(0.885, "npc"),gp = gpar(fontsize = 10, fontface = 'bold'))
+}
+```
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+plot_legend <- function() {
+  grid.lines(x = unit(c(0.70, 0.85), "npc"), y = unit(c(0.80, 0.70), "npc"), gp = gpar(lwd = 4))
+  grid.rect(x = unit(0.85, "npc"), y = unit(0.60, "npc"), width = unit(0.29, "npc"), 
+            height = unit(0.26, "npc"), gp = gpar(lwd = 4))
+  grid.text("Legend:", x = unit(0.75, "npc"), y = unit(0.71, "npc"), 
+            gp = gpar(fontsize = 10, fontface = 'bold'))
+  grid.text("Size of Node = Passengers per year", x = unit(0.71, "npc"), 
+            y = unit(0.68, "npc"),gp = gpar(fontsize = 8), just = "left")
+  grid.text("Red Node = Low rated airport", x = unit(0.71, "npc"), 
+            y = unit(0.65, "npc"),gp = gpar(fontsize = 8), just = "left")
+  grid.text("Green Node = High rated airport", x = unit(0.71, "npc"), 
+            y = unit(0.62, "npc"),gp = gpar(fontsize = 8), just = "left")
+  grid.text("Red Border = Negative airport reviews", x = unit(0.71, "npc"), 
+            y = unit(0.59, "npc"),gp = gpar(fontsize = 8), just = "left")
+  grid.text("Green Border = Positive airport reviews", x = unit(0.71, "npc"), 
+            y = unit(0.56, "npc"),gp = gpar(fontsize = 8), just = "left")
+  grid.text("Edge = Flights connecting airports", x = unit(0.71, "npc"), 
+            y = unit(0.53, "npc"),gp = gpar(fontsize = 8), just = "left")
+  grid.text("Width of Edge = Flights per year", x = unit(0.71, "npc"), 
+            y = unit(0.50, "npc"),gp = gpar(fontsize = 8), just = "left")
+}
+```
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+plot_edges <- function(U, V, weights) {
+  for (i in 1:10){
+    # change lwd, max 7 
+    grid.lines(x = unit(c(0.4, U[i]), "npc"), y = unit(c(0.12, V[i]), "npc"), gp = gpar(lwd = weights[i]))
+  }
+}
+```
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+# KILLER PLOT CODE 
+my.grid.plot <- function(data){
+  grid.newpage()
+  grid.layout(1,2)
+  top.vp <- viewport(width = 1.0, height = 1.0)
+  pushViewport(top.vp)
+  
+  plot_luggage()
+  plot_legend()
+  
+  # Create IAH Node 
+  grid.circle(x = unit(0.4, "npc"), y = unit(0.12, "npc"), r = unit(0.03, "npc"), gp = gpar(fill = "black"))
+  grid.text("IAH", x=unit(0.4, "npc"), y=unit(0.075, "npc"), gp=gpar(fontsize=8))
+  
+  # Create Edges 
+  #     689,  912   862   224   1075  1400  1416  1034  925   1635
+  X = c(0.18, 0.20, 0.33, 0.30, 0.43, 0.53, 0.63, 0.68, 0.63, 0.75)
+  Y = c(0.35, 0.50, 0.45, 0.13, 0.55, 0.66, 0.61, 0.43, 0.23, 0.15)
+  weights = data$flight_count_regularized
+  plot_edges(X, Y, weights) 
   
   # Create Nodes 
   radius= data$passenger_count_regularized
   rating = data$average_rating
   sentiment = data$review_rating
+  labels = c("ATL", "CLT", "DEN", "DFW", "DTW", "EWR", "LGA", "MSP", "ORD", "SFO")  
+  labels_X = c(0.18, 0.20, 0.33,  0.24,  0.43,  0.54,  0.63,  0.68,  0.69,  0.80)
+  labels_Y = c(0.43, 0.55, 0.54,  0.13,  0.60,  0.58,  0.555,  0.38,  0.23,  0.15)
   for (i in 1:10){
-    plot_node(radius, rating, sentiment, i)
+    plot_node(radius, rating, X, Y, sentiment, i)
+    label_nodes(labels, labels_X, labels_Y)
   }
 }
 ```
