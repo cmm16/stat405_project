@@ -86,7 +86,7 @@ regularized_flights = c()
 for (row in 1:nrow(alldata)) {
     max_flight_count = max_flights[max_flights$month == 2,]$max
     new_flight_count = alldata[row, "flight_count"] / (max_flight_count)
-    regularized_flights = c(regularized_flights, new_flight_count*3)
+    regularized_flights = c(regularized_flights, new_flight_count * 3)
     
     max_passenger_count = max_passengers[max_passengers$month == 2,]$max
     new_passenger_count = alldata[row, "passenger_count"] / (max_passenger_count*15)
@@ -97,6 +97,45 @@ alldata$passenger_count_regularized = regularized_passengers
 alldata$flight_count_regularized = regularized_flights
 
 # write.csv(alldata, "KillerPlotData-Monthly.csv")
+```
+
+# EDA 
+
+### Number of flights per month to the top 10 destinations out of IAH. 
+Spike in the number of flights in October. 
+```{r, warning=FALSE, message=FALSE}
+# Join all the data together 
+total_flights = data.frame(alldata %>% 
+  group_by(month) %>% 
+  summarise(Flights = sum(flight_count)))
+```
+
+```{r, warning=FALSE, message=FALSE}
+ggplot(data = total_flights) + 
+  aes(x=month, y=Flights) + 
+  geom_line(stat="identity") + 
+  ggtitle("Number of flights per month out of IAH") + 
+  xlab("Month") + 
+  ylab("Number of Flights")
+```
+
+### Number of passenger per month to the top 10 destinations out of IAH. 
+Spike in the number of flights in the summer, as expected because most people are travelling for summer vactions. 
+
+```{r, warning=FALSE, message=FALSE}
+# Join all the data together 
+total_passengers = data.frame(alldata %>% 
+  group_by(month) %>% 
+  summarise(Passengers = sum(passenger_count)))
+```
+
+```{r, warning=FALSE, message=FALSE}
+ggplot(data = total_passengers) + 
+  aes(x=month, y=Passengers) + 
+  geom_line(stat="identity") + 
+  ggtitle("Number of passengers per month out of IAH") + 
+  xlab("Month") + 
+  ylab("Number of Passengers")
 ```
 
 # STARTING POINT HERE 
