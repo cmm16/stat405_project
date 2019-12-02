@@ -42,16 +42,15 @@ head(iahPassengers)
 
 
 ```{r, warning=FALSE, message=FALSE}
-# Get count of number of flights out of IAH to each DEST
 res <- dbSendQuery(conn = dcon, "
 SELECT DEST as dest, MONTH as month, COUNT(*) as flight_count, DISTANCE as distance
-FROM flights
+FROM (SELECT DISTINCT YEAR, MONTH, DAY_OF_MONTH, DAY_OF_WEEK, TAIL_NUM, ORIGIN, DEST, DEP_TIME, DISTANCE
+FROM flights)
 WHERE ORIGIN = 'IAH' and YEAR = 2018
 GROUP BY DEST, MONTH;")
 iahFlightCount <- dbFetch(res, -1)
 dbClearResult(res)
 top10FlightCount = iahFlightCount[iahFlightCount$dest %in% top10names,]
-top10FlightCount
 ```
 
 ```{r, warning=FALSE, message=FALSE}
@@ -85,8 +84,8 @@ regularized_flights = c()
 
 for (row in 1:nrow(alldata)) {
     max_flight_count = max_flights[max_flights$month == 2,]$max
-    new_flight_count = alldata[row, "flight_count"] / (max_flight_count)
-    regularized_flights = c(regularized_flights, new_flight_count * 3)
+    new_flight_count = alldata[row, "flight_count"]*6 / (max_flight_count)
+    regularized_flights = c(regularized_flights, new_flight_count)
     
     max_passenger_count = max_passengers[max_passengers$month == 2,]$max
     new_passenger_count = alldata[row, "passenger_count"] / (max_passenger_count*15)
@@ -269,7 +268,6 @@ ui <- fluidPage(
       mainPanel(
          plotOutput("killerPlot", width="600px", height="400px")
       )
-   )
 )
 
 # Define server logic required to draw a histogram

@@ -20,7 +20,7 @@ library(gridBase)
 library(gridExtra)
 library(shiny)
 library(dplyr)
-dcon <- dbConnect(SQLite(), dbname = "C:/Users/bcard/Documents/SavedStuff/Stat405/group10.db")
+dcon <- dbConnect(SQLite(), dbname = "./group10.db")
 ```
 
 
@@ -229,8 +229,8 @@ regularized_flights = c()
 
 for (row in 1:nrow(alldata)) {
     max_flight_count = max_flights[max_flights$month == 2,]$max
-    new_flight_count = alldata[row, "flight_count"] / (max_flight_count)
-    regularized_flights = c(regularized_flights, new_flight_count * 3)
+    new_flight_count = alldata[row, "flight_count"]*6 / (max_flight_count)
+    regularized_flights = c(regularized_flights, new_flight_count)
     
     max_passenger_count = max_passengers[max_passengers$month == 2,]$max
     new_passenger_count = alldata[row, "passenger_count"] / (max_passenger_count*15)
@@ -408,7 +408,6 @@ plot_legend <- function() {
 
 plot_edges <- function(U, V, weights) {
   for (i in 1:10){
-    # change lwd, max 7 
     grid.lines(x = unit(c(0.4, U[i]), "npc"), y = unit(c(0.12, V[i]), "npc"), gp = gpar(lwd = weights[i]))
   }
 }
