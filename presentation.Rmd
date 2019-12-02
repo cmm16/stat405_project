@@ -3,74 +3,278 @@ title: "Group 10"
 author: "Henry Creamer, Melinda Ding, Aaryan Jadhav, Cole Morgan, Caleigh Page"
 date: "December 6, 2019"
 output: ioslides_presentation
+runtime: shiny
+
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+library(RSQLite)
+library(ggplot2)
+library(tidyverse)
+library(grid)
+library(gridBase)
+library(gridExtra)
+dcon <- dbConnect(SQLite(), dbname = "C:/Users/bcard/Documents/SavedStuff/Stat405/group10.db")
+```
 
-## Introduction
 
-RESEARCH QUESTION 
+## Introduction 
 
-- What are the most popular destinations from IAH? 
+RESEARCH QUESTIONS
+
+- What are the most popular airlines and destinations from IAH? 
 - How have flight patterns out of IAH changed over time? 
+- How does airport quality affect the number of flights and passengers going to an airport?
 
 METHODOLOGY 
 
-- Gathered and cleaned data 
-- Explored data 
-- Created killer plot to summarize findings
+- Gathered and cleaned data from 5 different data sources
+- Explored the data 
+- Created two killer plots to summarize findings
 
 
-## Data Sets 
-Flight Data 
+## Data Set #1 
+FLIGHT DATA 
 
-- Have years 2018, 2017, and 2016 
+- Have years 2018, 2017, 2016, and 2015 (4 million+ rows of data)
 - Source: Bureau of Transportation Statistics 
 - Attributes: Year, month, day, day of the week, airline id, tail number, flight number, origin, origin city, dest, dest city, expected departure time, departure time, departure delay, arrival delay, cancelled (bool), carrier delay (bool), weather delay (bool)
 
-## Data Sets 
+## Data Set #2
 PASSENGER DATA
 
 - For 2018
 - Source: Bureau of Transportation Statistics 
 - Attributes: seats, passengers, unique_carrier, origin, origin_city, origin_state, dest, dest_city, dest_state, aircraft_type, class (only passenger)
 
-## Data Sets 
+## Data Set #3
 REVIEWS DATA
 
 - For 2018
 - Source: 
 - Attributes: airport_name, link, title, author, author_country, date, content, experience_airport, date_visit, type_traveller, overall_rating, queing_rating, terminal_cleanliness_rating, terminal_seating_rating, food_beverages_rating, airport_shopping_rating, wifi_connectivity_rating, airport_staff_rating, recommended 
 
-## Data Sets 
+## Data Set #4 
 SENTIMENT DATA
 
 - First compiled a list of the top 2,000 words across all airport reviews 
 - Scraped 10 synonyms for each word in the top 2,000 words from thesaurus.com
-- Attributes: word, synonym1, synonym2, synonym3, synonym4, synonym5, synonym6, synonym7, synonym8, synonym9, synonym10 
+- Attributes: word, synonym1, synonym2, synonym3, synonym4, synonym5, synonym6, synonym7, synonym8, synonym9, synonym10
+
+## Data Set #5
+AIRLINE LOGO DATA
+
+- First compiled the airlines that fly out of IAH 
+- Scraped the airline logos from travelpayouts.com
+- Attributes: airline logo image
 
 ## Data Preparation 
 
-- Filter to origin is IAH 
-- grouped by?
+- Dropped rows that contained NA values for important attributes
+- Filtered data to ensure origin was IAH 
+- Grouped and counted data across many attributes
 
+## Exploratory Data Analysis
+OVERVIEW
 
+- Explored flight data for top destinations and delay times
+- Explored airplane capacity in order to detect inefficiencies
+- Explored distribution of airport ratings
+- Explored word breakdowns of the airport reviews
 
+## NEED TO UPDATE GRAPHS BASED OFF ALEX's FEEDBACK
 
-## Slide with R Output
+## Top 20 Airport Destinations by Location
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+res <- dbSendQuery(conn = dcon, "
+SELECT ORIGIN, count(*) as c
+FROM flights
+GROUP BY ORIGIN 
+ORDER BY c DESC")
+topOutgoing <- dbFetch(res, -1)
+txairports <- c("ABI", "AUS", "CRP", "DFW", "DAL", "ELP", "GRK", "IAH", "HOU", "LBB", "MAF", "SAT", "ACT", "SPS")
+topOutTexas <- topOutgoing$ORIGIN[topOutgoing$ORIGIN %in% txairports]
+top4Texas <- topOutTexas[1:4]
+dbClearResult(res)
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM flights
+WHERE ORIGIN = 'IAH';")
+iahFlights <- dbFetch(res, -1)
+dbClearResult(res)
 
-```{r cars, echo = TRUE}
-summary(cars)
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM flights
+WHERE ORIGIN = 'AUS';")
+ausflights <- dbFetch(res, -1)
+dbClearResult(res)
+
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM flights
+WHERE ORIGIN = 'DFW';")
+dfwFlights <- dbFetch(res, -1)
+dbClearResult(res)
+
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM flights
+WHERE ORIGIN = 'DAL';")
+dalFlights <- dbFetch(res, -1)
+dbClearResult(res)
+
+# IAH
+n <- length(sort(table(iahFlights$DEST)))
+top20 <- data.frame(sort(table(iahFlights$DEST))[(n -20):n]) 
+top20names <- as.vector(top20$Var1)
+top20data <- iahFlights[iahFlights$DEST %in% top20names, ]
+p1 <- ggplot() + 
+  geom_bar(data=top20data, aes(DEST), color="black", fill="lightblue") + 
+  theme(axis.text.x=element_text(angle=90, hjust=1, size=9)) +
+  ylab("Number of Flights") + 
+  xlab("Destination") +
+  ggtitle("Top 20 Destinations from IAH")
+
+# AUS
+n <- length(sort(table(ausflights$DEST)))
+top20 <- data.frame(sort(table(ausflights$DEST))[(n -20):n]) 
+top20names <- as.vector(top20$Var1)
+top20data <- ausflights[ausflights$DEST %in% top20names, ]
+p2 <- ggplot() + 
+  geom_bar(data=top20data, aes(DEST), color="black", fill="pink") + 
+  theme(axis.text.x=element_text(angle=90, hjust=1, size=9)) +
+  ylab("Number of Flights") + 
+  xlab("Destination") +
+  ggtitle("Top 20 Destinations from AUS")
+
+# DFW
+n <- length(sort(table(dfwFlights$DEST)))
+top20 <- data.frame(sort(table(dfwFlights$DEST))[(n -20):n]) 
+top20names <- as.vector(top20$Var1)
+top20data <- dfwFlights[dfwFlights$DEST %in% top20names, ]
+p3 <- ggplot() + 
+  geom_bar(data=top20data, aes(DEST), color="black", fill="lightgreen") + 
+  theme(axis.text.x=element_text(angle=90, hjust=1, size=9)) +
+  ylab("Number of Flights") + 
+  xlab("Destination") +
+  ggtitle("Top 20 Destinations from DFW")
+
+# DAL
+n <- length(sort(table(dalFlights$DEST)))
+top20 <- data.frame(sort(table(dalFlights$DEST))[(n -20):n]) 
+top20names <- as.vector(top20$Var1)
+top20data <- dalFlights[dalFlights$DEST %in% top20names, ]
+p4 <- ggplot() + 
+  geom_bar(data=top20data, aes(DEST), color="black", fill="purple") + 
+  theme(axis.text.x=element_text(angle=90, hjust=1, size=9)) +
+  ylab("Number of Flights") + 
+  xlab("Destination") +
+  ggtitle("Top 20 Destinations from DAL")
+
+grid.arrange(p1, p2, p3, p4, nrow = 2)
 ```
 
-## Slide with Plot
+## Inefficiency of Flights Out of IAH
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+DT = data.frame(
+  month = c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"),
+  Ineffeciency = c(1795726, 1790006, 795726, 1327422, 1299193, 1086968, 1291711, 1650673, 1733035, 1499018, 1352993, 1459601))
 
-```{r pressure}
-plot(pressure)
+DT$month <- fct_relevel(DT$month, "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+usingGg <- ggplot(data=DT, aes(x=DT$month, y=DT$Ineffeciency, group=1)) +
+  geom_line()+
+  geom_point() + labs(title = "Empty Seats per Month from IAH", x= "Month", y = "Number of Empty Seats")
+usingGg
 ```
+
+## Distribution of Airport Ratings
+
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+
+```
+
+## Most Common Words in Airport Reviews
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+cbPalette <- c("chocolate", "cornflowerblue", "brown4", "blueviolet", "blue", "black", "aquamarine4", "dodgerblue1", "dimgrey", "deeppink4", "darkviolet", "darkslateblue", "darksalmon", "darkred", "darkorchid1", "darkolivegreen4", "cyan2", "green4", "indianred3", "mediumblue", "hotpink1", "paleturquoise2", "orangered4", "navyblue", "red")
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM top2kdf;")
+top2kdf <- dbFetch(res, -1)
+dbClearResult(res)
+all_words = as.vector(t(top2kdf))
+word_table = table(all_words)
+word_table = sort(word_table, decreasing=TRUE)
+word_df = data.frame(word_table[2:26])
+ggplot(data = word_df, aes(x=all_words, y=Freq)) + 
+  geom_bar(stat="identity", fill= cbPalette) +
+  labs(x="Word", y="Count", title="Top 25 Word Counts") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, size=12))
+```
+
+## Sentiment Analysis
+
+- Conducted sentiment analysis on the airport reviews
+- Used synonyms we scraped from thesaurus.com for our sentiment data set in order to condense the reviews
+- Used RSentiment package on these condensed reviews in order to determine if a review had a positive, neutral, or negative sentiment
+- Compared our sentiment score to the average rating of the aiport to analyze effectiveness of sentiment analysis
+
+## Analyzing the Effectivness of Sentiment Analysis
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+res <- dbSendQuery(conn = dcon, "
+SELECT airport_name as Airport, sum(match) as NumMatches, count(match) as TotalReviews
+FROM sentiment
+GROUP BY title;")
+matches_by_airport <- dbFetch(res, -1)
+dbClearResult(res)
+
+texas_airports <- matches_by_airport[matches_by_airport$Airport == "austin-airport" | matches_by_airport$Airport == "dallas-fort-worth-airport" | matches_by_airport$Airport == "dallas-love-field-airport" | matches_by_airport$Airport == "houston-george-bush-intercontinental-airport" | matches_by_airport$Airport == "houston-hobby-airport" | matches_by_airport$Airport == "el-paso-airport" ,]
+
+value <- texas_airports$TotalReviews
+airport <- c(rep("AUS", texas_airports[1,3]), rep("DFW", texas_airports[2,3]), rep("DAL", texas_airports[3,3]),
+             rep("ELP", texas_airports[4,3]), rep("IAH", texas_airports[5,3]), rep("HOU", texas_airports[6,3]))
+Result <- c(rep("Success",5), rep("Failure",3), rep("Success",9), rep("Failure",40),
+            rep("Failure",3), rep("Success",1), rep("Failure",2), rep("Success",28), rep("Failure",69),
+            rep("Success",2), rep("Failure",2))
+data <- data.frame(airport,Result)
+
+ggplot(data, aes(fill=Result, x=airport)) + 
+  geom_bar(position="fill") + 
+  xlab("Texas Airports") + 
+  ylab("Percentage of Reviews") + 
+  ggtitle("Accuracy for Sentiment Analysis Across Texas Airport Data") + scale_fill_manual(values = c("red", "darkgreen"))
+```
+
+## Time Series Modeling
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+
+```
+
+## Killer Plot #1
+
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+
+```
+
+## Killer Plot #2
+
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+
+```
+
+
+## Conclusion 
+IMPORTANCE OF FINDINGS
+
+- need things here...
+
+TAKEAWAYS
+- Sentiment analysis on airport reviews not an effective way to determine quality of an airport
+_ need stuff here...
 
 ## {.flexbox .vcenter}
 <div class="centered">
