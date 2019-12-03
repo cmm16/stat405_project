@@ -875,12 +875,17 @@ df.cv <- cross_validation(m, initial=1400, period = 1, horizon=60, units = 'days
 df.p <- performance_metrics(df.cv)
 #plot(m, forecast)
 #prophet_plot_components(m, forecast)
-dyplot.prophet(m, forecast, ylab="test")
+dyplot.prophet(m, forecast)
 ```
 
 ## Time Series Model Components
 ```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
-prophet_plot_components(m, forecast)
+components <- prophet_plot_components(m, forecast, render_plot=FALSE)
+a <- components[[1]] + labs(x = "Year", y="") + ggtitle("Trend Component")
+b <- components[[2]] + labs(x = "Year", y = "") + ggtitle("Holiday Component")
+c <- components[[3]] + labs(x = "Day of the Week", y="") + ggtitle("Weekly Seasonal Component")
+d <- components[[4]] + labs(x = "Month and Day", y="") + ggtitle("Yearly Seasonal Component")
+grid.arrange(a,b,c,d,nrow=4)
 ```
 
 ## Time Series Forecasting on Test Data
