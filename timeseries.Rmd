@@ -15,6 +15,7 @@ library(prophet)
 library(grid)
 library(gridBase)
 library(lubridate)
+library(gridExtra)
 
 dcon <- dbConnect(SQLite(), dbname = "group10.db")
 dbListTables(dcon)
@@ -134,7 +135,7 @@ plot.prophet <- function(x, fcst, uncertainty = TRUE, plot_cap = TRUE,
                          xlabel = 'ds', ylabel = 'y', ...) {
   df <- df_for_plotting(x, fcst)
   gg <- ggplot2::ggplot(df, ggplot2::aes(x = ds, y = y)) +
-    ggplot2::labs(x = xlabel, y = ylabel) +
+    ggplot2::labs(x = "Month and Year", y = "Number of Daily Flights") +
     ggplot2::ggtitle("Number of flights per day out of IAH")
   if (exists('cap', where = df) && plot_cap) {
     gg <- gg + ggplot2::geom_line(
@@ -529,6 +530,15 @@ df.p <- performance_metrics(df.cv)
 plot(m, forecast)
 prophet_plot_components(m, forecast)
 
+
+
+components <- prophet_plot_components(m, forecast, render_plot=FALSE)
+a <- components[[1]] + labs(x = "Year", y="") + ggtitle("Trend Component")
+b <- components[[2]] + labs(x = "Year", y = "") + ggtitle("Holiday Component")
+c <- components[[3]] + labs(x = "Day of the Week", y="") + ggtitle("Weekly Seasonal Component")
+d <- components[[4]] + labs(x = "Month and Day", y="") + ggtitle("Yearly Seasonal Component")
+grid.arrange(a,b,c,d,nrow=4)
+
 ggplot2::ggplot(df.cv, ggplot2::aes(x = ds, y = y)) +
 ggplot2::labs(x = "Number of days forecasted out", y = "Number of Flights") +
 ggplot2::ggtitle("Forcasted number of flights per day out of IAH vs.actual") +
@@ -554,6 +564,59 @@ test_mean <- mean(df.cv$y)
 
 results <- data.frame("TYPE"= c("Train", "Test"), "MAE" = c(train_mae, test_mae), "MAPE" = c(train_mape, test_mape), "RMSE" = c(train_rmse, test_rmse))
 results
+
+dyplot.prophet <- function(x, fcst, uncertainty=TRUE, 
+                           ...) 
+{
+  forecast.label='Predicted'
+  actual.label='Actual'
+  # create data.frame for plotting
+  df <- df_for_plotting(x, fcst)
+  
+  # build variables to include, or not, the uncertainty data
+  if(uncertainty && x$uncertainty.samples && exists("yhat_lower", where = df))
+  {
+    colsToKeep <- c('y', 'yhat', 'yhat_lower', 'yhat_upper')
+    forecastCols <- c('yhat_lower', 'yhat', 'yhat_upper')
+  } else
+  {
+    colsToKeep <- c('y', 'yhat')
+    forecastCols <- c('yhat')
+  }
+  # convert to xts for easier date handling by dygraph
+  dfTS <- xts::xts(df %>% dplyr::select_(.dots=colsToKeep), order.by = df$ds)
+
+  # base plot
+  dyBase <- dygraphs::dygraph(dfTS)
+  
+  presAnnotation <- function(dygraph, x, text) {
+    dygraph %>%
+      dygraphs::dyAnnotation(x, text, text, attachAtBottom = TRUE)
+  }
+  
+  dyBase <- dyBase %>%
+    # plot actual values
+    dygraphs::dySeries(
+      'y', label=actual.label, color='black', drawPoints=TRUE, strokeWidth=0
+    ) %>%
+    # plot forecast and ribbon
+    dygraphs::dySeries(forecastCols, label=forecast.label, color='blue') %>%
+    # allow zooming
+    dygraphs::dyRangeSelector() %>% 
+    # make unzoom button
+    dygraphs::dyUnzoom()
+  if (!is.null(x$holidays)) {
+    for (i in 1:nrow(x$holidays)) {
+      # make a gray line
+      dyBase <- dyBase %>% dygraphs::dyEvent(
+        x$holidays$ds[i],color = "rgb(200,200,200)", strokePattern = "solid")
+      dyBase <- dyBase %>% dygraphs::dyAnnotation(
+        x$holidays$ds[i], x$holidays$holiday[i], x$holidays$holiday[i],
+        attachAtBottom = TRUE)
+    }
+  }
+  return(dyBase %>% dyAxis("y", label = "Temp (F)"))
+}
 
 dyplot.prophet(m, forecast)
 ```
