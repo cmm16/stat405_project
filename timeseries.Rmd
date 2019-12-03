@@ -1,6 +1,8 @@
 ---
 title: "EDA"
 output:
+  html_document:
+    df_print: paged
   pdf_document: default
   pdf_notebook: default
 ---
@@ -516,7 +518,7 @@ add_group_component <- function(components, name, group) {
 }
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 m <- prophet()
 m <- add_country_holidays(m, country_name = 'US')
 m <- fit.prophet(m, df)
@@ -552,4 +554,6 @@ test_mean <- mean(df.cv$y)
 
 results <- data.frame("TYPE"= c("Train", "Test"), "MAE" = c(train_mae, test_mae), "MAPE" = c(train_mape, test_mape), "RMSE" = c(train_rmse, test_rmse))
 results
+
+dyplot.prophet(m, forecast)
 ```
