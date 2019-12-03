@@ -34,32 +34,42 @@ RESEARCH QUESTIONS
 - How have flight patterns out of IAH changed over time? 
 - How does airport quality affect the number of flights and passengers going to an airport?
 
+
+## Introduction 
+
 METHODOLOGY 
 
 - Gathered and cleaned data from 5 different data sources
 - Explored the data 
 - Created two killer plots to summarize findings
 
+## {.flexbox .vcenter}
+<div class="centered">
+  <font size="8">Data Gathering and Preparation</font> 
+</div>
 
 ## Data Set #1 
 FLIGHT DATA 
 
-- Have years 2018, 2017, 2016, and 2015 (4 million+ rows of data)
+- Have years 2015-2018
+- Dimensions: 6,287,635 x 21
 - Source: Bureau of Transportation Statistics 
 - Attributes: Year, month, day, day of the week, airline id, tail number, flight number, origin, origin city, dest, dest city, expected departure time, departure time, departure delay, arrival delay, cancelled (bool), carrier delay (bool), weather delay (bool)
 
 ## Data Set #2
 PASSENGER DATA
 
-- For 2018
+- 2018
+- Dimensions: 381,291 x 19
 - Source: Bureau of Transportation Statistics 
 - Attributes: seats, passengers, unique_carrier, origin, origin_city, origin_state, dest, dest_city, dest_state, aircraft_type, class (only passenger)
 
 ## Data Set #3
 REVIEWS DATA
 
-- For 2018
-- Source: 
+- 2015
+- Dimensions: 17,721 x 21
+- Source: https://www.airlinequality.com/
 - Attributes: airport_name, link, title, author, author_country, date, content, experience_airport, date_visit, type_traveller, overall_rating, queing_rating, terminal_cleanliness_rating, terminal_seating_rating, food_beverages_rating, airport_shopping_rating, wifi_connectivity_rating, airport_staff_rating, recommended 
 
 ## Data Set #4 
@@ -67,30 +77,27 @@ SENTIMENT DATA
 
 - First compiled a list of the top 2,000 words across all airport reviews 
 - Scraped 10 synonyms for each word in the top 2,000 words from thesaurus.com
+- Dimensions: 2,000 x 11
 - Attributes: word, synonym1, synonym2, synonym3, synonym4, synonym5, synonym6, synonym7, synonym8, synonym9, synonym10
 
 ## Data Set #5
 AIRLINE LOGO DATA
 
-- First compiled the airlines that fly out of IAH 
+- First found the airlines that fly out of IAH 
 - Scraped the airline logos from travelpayouts.com
-- Attributes: airline logo image
+- Attributes: 12 jpeg images
 
 ## Data Preparation 
 
 - Dropped rows that contained NA values for important attributes
 - Filtered data to ensure origin was IAH 
 - Grouped and counted data across many attributes
+- Ex: Dropped reviews that did not have rating score
 
-## Exploratory Data Analysis
-OVERVIEW
-
-- Explored flight data for top destinations, number of flights, and number of passengers
-- Explored airplane capacity in order to detect inefficiencies
-- Explored distribution of airport ratings
-- Explored word breakdowns of the airport reviews
-
-## NEED TO UPDATE GRAPHS BASED OFF ALEX's FEEDBACK
+## {.flexbox .vcenter}
+<div class="centered">
+  <font size="8">Exploratory Data Analysis</font> 
+</div>
 
 ## Top 20 Airport Destinations by Location
 ```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
@@ -330,8 +337,10 @@ ggplot() +
 
 
 ## Most Common Words in Airport Reviews
+
 ```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
-cbPalette <- c("chocolate", "cornflowerblue", "brown4", "blueviolet", "blue", "black", "aquamarine4", "dodgerblue1", "dimgrey", "deeppink4", "darkviolet", "darkslateblue", "darksalmon", "darkred", "darkorchid1", "darkolivegreen4", "cyan2", "green4", "indianred3", "mediumblue", "hotpink1", "paleturquoise2", "orangered4", "navyblue", "red")
+colfunc <- colorRampPalette(c("red", "orange", "green", "blue", "purple"))
+
 res <- dbSendQuery(conn = dcon, "
 SELECT *
 FROM top2kdf;")
@@ -342,10 +351,15 @@ word_table = table(all_words)
 word_table = sort(word_table, decreasing=TRUE)
 word_df = data.frame(word_table[2:26])
 ggplot(data = word_df, aes(x=all_words, y=Freq)) + 
-  geom_bar(stat="identity", fill= cbPalette) +
+  geom_bar(stat="identity", fill = colfunc(25)) +
   labs(x="Word", y="Count", title="Top 25 Word Counts") +
-  theme(axis.text.x=element_text(angle=90, hjust=1, size=12))
+  theme(axis.text.x=element_text(angle=90, hjust=1, size=12)) + scale_color_gradient(low = "#132B43", high = "#56B1F7")
 ```
+
+## {.flexbox .vcenter}
+<div class="centered">
+  <font size="8">Modeling</font> 
+</div>
 
 ## Sentiment Analysis
 
@@ -354,7 +368,8 @@ ggplot(data = word_df, aes(x=all_words, y=Freq)) +
 - Used RSentiment package on these condensed reviews in order to determine if a review had a positive, neutral, or negative sentiment
 - Compared our sentiment score to the average rating of the aiport to analyze effectiveness of sentiment analysis
 
-## Analyzing the Effectivness of Sentiment Analysis
+## Analyzing the Effectiveness of Sentiment Analysis
+
 ```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
 res <- dbSendQuery(conn = dcon, "
 SELECT airport_name as Airport, sum(match) as NumMatches, count(match) as TotalReviews
@@ -368,9 +383,11 @@ texas_airports <- matches_by_airport[matches_by_airport$Airport == "austin-airpo
 value <- texas_airports$TotalReviews
 airport <- c(rep("AUS", texas_airports[1,3]), rep("DFW", texas_airports[2,3]), rep("DAL", texas_airports[3,3]),
              rep("ELP", texas_airports[4,3]), rep("IAH", texas_airports[5,3]), rep("HOU", texas_airports[6,3]))
-Result <- c(rep("Success",5), rep("Failure",3), rep("Success",9), rep("Failure",40),
-            rep("Failure",3), rep("Success",1), rep("Failure",2), rep("Success",28), rep("Failure",69),
-            rep("Success",2), rep("Failure",2))
+
+
+Result  <- c(rep("Failure",5), rep("Success",3), rep("Failure",9), rep("Success",40),
+            rep("Success",3), rep("Failure",1), rep("Success",2), rep("Failure",28), rep("Success",69),
+            rep("Failure",2), rep("Success",2))
 data <- data.frame(airport,Result)
 
 ggplot(data, aes(fill=Result, x=airport)) + 
@@ -885,10 +902,18 @@ test_rmse <- mean(df.p$rmse)
 test_mae <- mean(df.p$mae)
 test_mape <- mean(df.p$mape)
 test_mean <- mean(df.cv$y)
-
-results <- data.frame("TYPE"= c("Train", "Test"), "MAE" = c(train_mae, test_mae), "MAPE" = c(train_mape, test_mape))
-results
 ```
+
+## Model Error
+Type         MAE          MAPE  
+-------     -------      ----------  
+     1      17.53556     0.04550617     
+     2      19.77747     0.04323118
+
+## {.flexbox .vcenter}
+<div class="centered">
+  <font size="8">Killer Plots</font> 
+</div>
 
 ## Killer Plot #1
 
@@ -1067,7 +1092,7 @@ for (x in 1:5){
 }
 ```
 
-```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE, fig.height=5.5, fig.width=7.5}
 
 res <- dbSendQuery(conn = dcon, "
                    SELECT UNIQUE_CARRIER_NAME, count(*) as count, sum(PASSENGERS) as passenger_count, sum(SEATS) as capacity
@@ -1078,10 +1103,7 @@ res <- dbSendQuery(conn = dcon, "
 airlines <- dbFetch(res, -1)
 dbClearResult(res)
 total_passengers_carried <- sum(airlines$passenger_count)
-total_passengers_carried
 airlines$percent = airlines$passenger_count / total_passengers_carried
-dim(airlines)
-airlines[43:48, ]
 
 plane<-readJPEG("C:/Users/bcard/Documents/SavedStuff/Stat405/Plane.jpg")
 airlineu<-readJPEG("C:/Users/bcard/Documents/SavedStuff/Stat405/United_Air_Lines_Inc..jpeg")
@@ -1117,11 +1139,28 @@ rasterImage(airliner,1.57 + (4)*1.465 , 5.85 , 2.4 + (4)*1.465 , 6.75)
 
 ```
 
+## {.flexbox .vcenter}
+<div class="centered">
+  <font size="8">Conclusion</font> 
+  
+</div>
 
-## Conclusion 
-IMPORTANCE OF FINDINGS
+## IAH Quantitative Metrics 
 
-- need things here...
+- Most popular airlines: United, Mesa, Spirit, American Airlines, Express, Republic
+- Top destination based on flights: ATL, CLT, DEN, DFW, DTW, EWR, LGA, MSP, ORD, SFO
+
+## IAH Qualitative Metrics 
+
+- Analyzed airport quality through sentiment analysis 
+- Visualized inefficiencies that airlines in IAH face
+
+## IAH Time-Based Metrics 
+- Reinforced assumptions on seasonal effects on flight patterns
+> - Summer months have the most number of flights and passengers 
+-Analyzed flight patterns over time through time series models
+> - Visually represented flight pattern changes through killer plot
+> - And predicted future flight patterns with minimal error 
 
 TAKEAWAYS
 - Sentiment analysis on airport reviews not an effective way to determine quality of an airport
