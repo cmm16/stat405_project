@@ -1,0 +1,101 @@
+---
+title: "AirportReviewsDistribution"
+author: STAT405 Group 10
+output: pdf_document
+---
+
+```{r, echo=TRUE}
+library(RSQLite)
+dcon <- dbConnect(SQLite(), dbname = "group10.db")
+dbListTables(dcon)
+```
+
+```{r echo = TRUE, warning = FALSE, message = FALSE}
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM reviews
+WHERE airport_name = 'houston-george-bush-intercontinental-airport';")
+review_data <- dbFetch(res, -1)
+dbClearResult(res)
+```
+
+Distribution of ratings for IAH airport 
+```{r echo = TRUE, warning = FALSE, message = FALSE}
+library(ggplot2)
+
+ggplot() + 
+  geom_bar(data=review_data, aes(x = overall_rating),
+           color="black", fill="lightblue") + 
+  theme(axis.text.x=element_text(angle=90, hjust=1, size=9)) +
+  xlab("Rating") +
+  ggtitle("IAH Ratings")
+```
+
+Top 10 destinations out of IAH
+```{r echo = TRUE, warning = FALSE, message = FALSE}
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM flights
+WHERE ORIGIN = 'IAH';")
+iahFlights <- dbFetch(res, -1)
+dbClearResult(res)
+
+n <- length(sort(table(iahFlights$DEST)))
+top20 <- data.frame(sort(table(iahFlights$DEST))[(n -9):n]) 
+top20names <- as.vector(top20$Var1)
+top10data <- iahFlights[iahFlights$DEST %in% top20names, ]
+
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM reviews;")
+reviews <- dbFetch(res, -1)
+dbClearResult(res)
+
+top10 <- c("atlanta-hartsfield-airport", "newark-airport", "dallas-fort-worth-airport", "denver-airport",
+           "san-francisco-airport", "charlotte-airport", "detroit-airport", "la-guardia-airport",
+           "chicago-ohare-airport", "minneapolis-st-paul-airport")
+top <- reviews[reviews$airport_name %in% top10, ]
+```
+
+Distribution of ratings for top 10 airports out of IAH 
+```{r echo = TRUE}
+ggplot() + 
+  geom_bar(data=top, aes(x = overall_rating, fill = factor(airport_name))) + 
+  theme(axis.text.x=element_text(angle=90, hjust=1, size=9)) +
+  xlab("Overall Ratings") +
+  ylab("Count") + 
+  labs(fill = "Airports") +
+  ggtitle("Distribution of Ratings for Top 10 Airports")
+```
+
+Average ratings of top 10 airports out of IAH 
+```{r echo = TRUE}
+ATL <- mean(subset(top, airport_name == "atlanta-hartsfield-airport")$overall_rating)
+EWR <- mean(subset(top, airport_name == "newark-airport")$overall_rating)
+DFW <- mean(subset(top, airport_name == "dallas-fort-worth-airport")$overall_rating)
+DEN <- mean(subset(top, airport_name == "denver-airport")$overall_rating)
+SFO <- mean(subset(top, airport_name == "san-francisco-airport")$overall_rating)
+CLT <- mean(subset(top, airport_name == "charlotte-airport")$overall_rating)
+DET <- mean(subset(top, airport_name == "detroit-airport")$overall_rating)
+LAG <- mean(subset(top, airport_name == "la-guardia-airport")$overall_rating)
+ORD <- mean(subset(top, airport_name == "chicago-ohare-airport")$overall_rating)
+MSP <- mean(subset(top, airport_name == "minneapolis-st-paul-airport")$overall_rating)
+
+avg_ratings <- data.frame(airports = c("ATL", "EWR","DFW",
+                        "DEN","SFO", "CLT", "DTW",
+                        "LAG","ORD", "MSP"), 
+           mean_rating = c(ATL, EWR, DFW, DEN, SFO, CLT, DET, LAG, ORD, MSP))
+
+ggplot() + 
+  geom_bar(data = avg_ratings, aes(x = airports, y = (mean_rating)), stat = "identity",
+           color="black", fill="lightpink") + 
+  theme(axis.text.x=element_text(angle=40, hjust=1, size=9)) +
+  xlab("Airports") +
+  ylab("Average Rating") + 
+  ggtitle("Distribution of Average Ratings for Top 10 Airports")
+```
+
+
+
+
+
