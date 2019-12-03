@@ -51,7 +51,7 @@ METHODOLOGY
 ## Data Set #1 
 FLIGHT DATA 
 
-- Have years 2015-2018
+- 2015-2018
 - Dimensions: 6,287,635 x 21
 - Source: Bureau of Transportation Statistics 
 - Attributes: Year, month, day, day of the week, airline id, tail number, flight number, origin, origin city, dest, dest city, expected departure time, departure time, departure delay, arrival delay, cancelled (bool), carrier delay (bool), weather delay (bool)
@@ -460,7 +460,7 @@ plot.prophet <- function(x, fcst, uncertainty = TRUE, plot_cap = TRUE,
                          xlabel = 'ds', ylabel = 'y', ...) {
   df <- df_for_plotting(x, fcst)
   gg <- ggplot2::ggplot(df, ggplot2::aes(x = ds, y = y)) +
-    ggplot2::labs(x = xlabel, y = ylabel) +
+    ggplot2::labs(x = "Month and Year", y = "Number of Daily Flights") +
     ggplot2::ggtitle("Number of flights per day out of IAH")
   if (exists('cap', where = df) && plot_cap) {
     gg <- gg + ggplot2::geom_line(
@@ -1156,15 +1156,11 @@ rasterImage(airliner,1.57 + (4)*1.465 , 5.85 , 2.4 + (4)*1.465 , 6.75)
 - Visualized inefficiencies that airlines in IAH face
 
 ## IAH Time-Based Metrics 
-- Reinforced assumptions on seasonal effects on flight patterns
-> - Summer months have the most number of flights and passengers 
--Analyzed flight patterns over time through time series models
-> - Visually represented flight pattern changes through killer plot
-> - And predicted future flight patterns with minimal error 
-
-TAKEAWAYS
-- Sentiment analysis on airport reviews not an effective way to determine quality of an airport
-_ need stuff here...
+* Reinforced assumptions on seasonal effects on flight patterns
+  + Summer months have the most number of flights and passengers 
+* Analyzed flight patterns over time through time series models
+  + Visually represented flight pattern changes through killer plot
+  + And predicted future flight patterns with minimal error 
 
 ## {.flexbox .vcenter}
 <div class="centered">
