@@ -1,0 +1,287 @@
+---
+title: "slider"
+date: "December 6, 2019"
+output: ioslides_presentation
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Slide with shiny
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+library(RSQLite)
+library(ggplot2)
+library(tidyverse)
+library(grid)
+library(gridBase)
+library(gridExtra)
+library(dplyr)
+
+dcon <- dbConnect(SQLite(), dbname = "./group10.db")
+dbListTables(dcon)
+```
+
+```{r, warning=FALSE, message=FALSE}
+# Get top 10 destinations out of IAH
+top10names <- c("ATL", "CLT", "DEN", "DFW", "DTW", "EWR", "LGA", "MSP", "ORD", "SFO")
+
+# Count number of ppl that go to each airport from IAH 
+res <- dbSendQuery(conn = dcon, "
+SELECT DEST as dest, MONTH as month, SUM(PASSENGERS) as passenger_count
+FROM passengers
+WHERE ORIGIN = 'IAH'
+GROUP BY DEST, MONTH;")
+iahPassengers_total <- dbFetch(res, -1)
+iahPassengers = iahPassengers_total[iahPassengers_total$dest %in% top10names,]
+dbClearResult(res)
+head(iahPassengers)
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+res <- dbSendQuery(conn = dcon, "
+SELECT DEST as dest, MONTH as month, COUNT(*) as flight_count, DISTANCE as distance
+FROM (SELECT DISTINCT YEAR, MONTH, DAY_OF_MONTH, DAY_OF_WEEK, TAIL_NUM, ORIGIN, DEST, DEP_TIME, DISTANCE
+FROM flights)
+WHERE ORIGIN = 'IAH' and YEAR = 2018
+GROUP BY DEST, MONTH;")
+iahFlightCount <- dbFetch(res, -1)
+dbClearResult(res)
+top10FlightCount = iahFlightCount[iahFlightCount$dest %in% top10names,]
+```
+
+```{r, warning=FALSE, message=FALSE}
+# Get average rating from passengers
+res <- dbSendQuery(conn = dcon, "
+SELECT airport_code as dest, airport_name, AVG(overall_rating) as average_rating, AVG(clipped_sentiment) as review_rating
+FROM sentiment
+GROUP BY airport_name;")
+raw_reviews <- dbFetch(res, -1)
+dbClearResult(res)
+reviews = raw_reviews[raw_reviews$dest %in% top10names,]
+reviews
+```
+
+```{r, warning=FALSE, message=FALSE}
+# Join all the data together 
+join1 = merge(iahPassengers, top10FlightCount, by=c("dest", "month"))
+alldata = data.frame(merge(join1, reviews, by="dest"))
+alldata
+```
+
+```{r, warning=FALSE, message=FALSE}
+# Data preparation for graphing 
+
+# Get the max per month 
+max_passengers = data.frame(alldata %>% group_by(month) %>% summarise(max = max(passenger_count)))
+max_flights = data.frame(alldata %>% group_by(month) %>% summarise(max = max(flight_count)))
+
+regularized_passengers = c() 
+regularized_flights = c()
+
+for (row in 1:nrow(alldata)) {
+    max_flight_count = max_flights[max_flights$month == 2,]$max
+    new_flight_count = alldata[row, "flight_count"]*6 / (max_flight_count)
+    regularized_flights = c(regularized_flights, new_flight_count)
+    
+    max_passenger_count = max_passengers[max_passengers$month == 2,]$max
+    new_passenger_count = alldata[row, "passenger_count"] / (max_passenger_count*15)
+    regularized_passengers = c(regularized_passengers, new_passenger_count)
+}
+
+alldata$passenger_count_regularized = regularized_passengers
+alldata$flight_count_regularized = regularized_flights
+
+# write.csv(alldata, "KillerPlotData-Monthly.csv")
+```
+
+# EDA 
+
+### Number of flights per month to the top 10 destinations out of IAH. 
+Spike in the number of flights in October. 
+```{r, warning=FALSE, message=FALSE}
+# Join all the data together 
+total_flights = data.frame(alldata %>% 
+  group_by(month) %>% 
+  summarise(Flights = sum(flight_count)))
+```
+
+```{r, warning=FALSE, message=FALSE}
+ggplot(data = total_flights) + 
+  aes(x=month, y=Flights) + 
+  geom_line(stat="identity") + 
+  ggtitle("Number of flights per month out of IAH") + 
+  xlab("Month") + 
+  ylab("Number of Flights")
+```
+
+### Number of passenger per month to the top 10 destinations out of IAH. 
+Spike in the number of flights in the summer, as expected because most people are travelling for summer vactions. 
+
+```{r, warning=FALSE, message=FALSE}
+# Join all the data together 
+total_passengers = data.frame(alldata %>% 
+  group_by(month) %>% 
+  summarise(Passengers = sum(passenger_count)))
+```
+
+```{r, warning=FALSE, message=FALSE}
+ggplot(data = total_passengers) + 
+  aes(x=month, y=Passengers) + 
+  geom_line(stat="identity") + 
+  ggtitle("Number of passengers per month out of IAH") + 
+  xlab("Month") + 
+  ylab("Number of Passengers")
+```
+
+# STARTING POINT HERE 
+
+```{r, warning=FALSE, message=FALSE}
+alldata = read.csv("KillerPlotData-Monthly.csv")
+```
+
+```{r, warning=FALSE, message=FALSE}
+plot_nodes <- function(radius, rating, X, Y, sentiment, idx) {
+  for (idx in 1:10){ 
+    # Cutoff threshold is 5 because ratings can range from 1 to 10 
+    fillColor = ifelse(rating[idx] > 5.0, "green", "red")
+    # Cutoff threshold is 0.0 because ratings can range from -1 to 1 
+    outlineColor = ifelse(sentiment[idx] > 0.0, "green", "red") 
+    grid.circle(x = unit(X[idx], "npc"), y = unit(Y[idx], "npc"), r = unit(radius[idx], "npc"),
+                gp = gpar(fill = fillColor, col = outlineColor, lwd = 3))
+  }
+}
+```
+
+```{r, warning=FALSE, message=FALSE}
+label_nodes <- function(labels, X, Y) {
+  for (i in 1:10){
+    grid.text(labels[i], x = unit(X[i], "npc"), y = unit(Y[i], "npc"), gp = gpar(fontsize = 7))
+  }
+}
+```
+
+```{r, warning=FALSE, message=FALSE}
+plot_luggage <- function() {
+  grid.rect(x = unit(0.5, "npc"), y = unit(0.40, "npc"), width = unit(0.80, "npc"), 
+            height = unit(0.70, "npc"), gp = gpar(lwd = 4))
+  grid.lines(x = unit(c(0.25, 0.25), "npc"),y = unit(c(0.75, 0.92), "npc"), gp = gpar(lwd = 4))
+  grid.lines(x = unit(c(0.75, 0.75), "npc"),y = unit(c(0.75, 0.92), "npc"), gp = gpar(lwd = 4))
+  grid.lines(x = unit(c(0.25, 0.75), "npc"),y = unit(c(0.92, 0.92), "npc"), gp = gpar(lwd = 4))
+  grid.lines(x = unit(c(0.30, 0.30), "npc"),y = unit(c(0.75, 0.85), "npc"), gp = gpar(lwd = 4))
+  grid.lines(x = unit(c(0.70, 0.70), "npc"),y = unit(c(0.75, 0.85), "npc"), gp = gpar(lwd = 4))
+  grid.lines(x = unit(c(0.30, 0.70), "npc"),y = unit(c(0.85, 0.85), "npc"), gp = gpar(lwd = 4))
+  grid.text("Top 10 Airport Destinations from IAH 2018 Analysis", x = unit(0.50, "npc"), 
+            y = unit(0.885, "npc"),gp = gpar(fontsize = 10, fontface = 'bold'))
+}
+```
+
+```{r,warning=FALSE, message=FALSE}
+plot_legend <- function() {
+  grid.lines(x = unit(c(0.70, 0.85), "npc"), y = unit(c(0.80, 0.70), "npc"), gp = gpar(lwd = 4))
+  grid.rect(x = unit(0.85, "npc"), y = unit(0.60, "npc"), width = unit(0.29, "npc"), 
+            height = unit(0.26, "npc"), gp = gpar(lwd = 4))
+  grid.text("Legend:", x = unit(0.75, "npc"), y = unit(0.71, "npc"), 
+            gp = gpar(fontsize = 10, fontface = 'bold'))
+  grid.text("Size of Node = Passengers per year", x = unit(0.71, "npc"), 
+            y = unit(0.68, "npc"),gp = gpar(fontsize = 8), just = "left")
+  grid.text("Red Node = Low rated airport", x = unit(0.71, "npc"), 
+            y = unit(0.65, "npc"),gp = gpar(fontsize = 8), just = "left")
+  grid.text("Green Node = High rated airport", x = unit(0.71, "npc"), 
+            y = unit(0.62, "npc"),gp = gpar(fontsize = 8), just = "left")
+  grid.text("Red Border = Negative airport reviews", x = unit(0.71, "npc"), 
+            y = unit(0.59, "npc"),gp = gpar(fontsize = 8), just = "left")
+  grid.text("Green Border = Positive airport reviews", x = unit(0.71, "npc"), 
+            y = unit(0.56, "npc"),gp = gpar(fontsize = 8), just = "left")
+  grid.text("Edge = Flights connecting airports", x = unit(0.71, "npc"), 
+            y = unit(0.53, "npc"),gp = gpar(fontsize = 8), just = "left")
+  grid.text("Width of Edge = Flights per year", x = unit(0.71, "npc"), 
+            y = unit(0.50, "npc"),gp = gpar(fontsize = 8), just = "left")
+}
+```
+
+```{r, warning=FALSE, message=FALSE}
+plot_edges <- function(U, V, weights) {
+  for (i in 1:10){
+    # change lwd, max 7 
+    grid.lines(x = unit(c(0.4, U[i]), "npc"), y = unit(c(0.12, V[i]), "npc"), gp = gpar(lwd = weights[i]))
+  }
+}
+```
+
+```{r, warning=FALSE, message=FALSE}
+# KILLER PLOT CODE 
+my.grid.plot <- function(data, month){
+  grid.newpage()
+  grid.layout(1,2)
+  top.vp <- viewport(width = 1.0, height = 1.0)
+  pushViewport(top.vp)
+  
+  plot_luggage()
+  plot_legend()
+  
+  # Create IAH Node 
+  grid.circle(x = unit(0.4, "npc"), y = unit(0.12, "npc"), r = unit(0.03, "npc"), gp = gpar(fill = "black"))
+  grid.text("IAH", x=unit(0.4, "npc"), y=unit(0.075, "npc"), gp=gpar(fontsize=8))
+  
+  # Create Edges 
+  #     689,  912   862   224   1075  1400  1416  1034  925   1635
+  X = c(0.18, 0.20, 0.33, 0.30, 0.43, 0.53, 0.63, 0.68, 0.63, 0.75)
+  Y = c(0.38, 0.53, 0.45, 0.13, 0.55, 0.66, 0.61, 0.43, 0.23, 0.15)
+  weights = data[data$month == month,]$flight_count_regularized
+  plot_edges(X, Y, weights) 
+  
+  # Create Nodes 
+  radius = data[data$month == month,]$passenger_count_regularized
+  rating = data$average_rating 
+  sentiment = data$review_rating
+  labels = c("ATL", "CLT", "DEN", "DFW", "DTW", "EWR", "LGA", "MSP", "ORD", "SFO")  
+  labels_X = c(0.18, 0.20, 0.33,  0.22,  0.43,  0.54,  0.63,  0.68,  0.705,  0.81)
+  labels_Y = c(0.46, 0.60, 0.56,  0.13,  0.61,  0.58,  0.55,  0.38,  0.23,  0.15)
+  plot_nodes(radius, rating, X, Y, sentiment)
+  label_nodes(labels, labels_X, labels_Y)
+}
+```
+
+
+```{r, echo=FALSE}
+library(shiny)
+
+# Define UI for application that draws a histogram
+ui <- fluidPage(
+   # Application title
+   titlePanel("Top 10 Airport Destinations from IAH 2018 Analysis"),
+   # Sidebar with a slider input for number of bins 
+    sidebarPanel(
+      radioButtons("month",
+                   label = "Select Month:",
+                   choices = list("January"=1,"February"=2,"March"=3,
+                                  "April"=4, "May"=5, "June"=6, 
+                                  "July"=7, "August"=8, "September"=9, 
+                                  "October"=10, "November"=11, "December"=12),
+                   selected = 1)
+    ),
+      # Show a plot of the generated distribution
+      mainPanel(
+         plotOutput("killerPlot", width="600px", height="400px")
+      )
+)
+
+# Define server logic required to draw a histogram
+server <- function(input, output) {
+  output$killerPlot <- renderPlot({
+    # generate killer plot based on input$month from ui.R
+    my.grid.plot(alldata, input$month)
+  })
+}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
+```
+
+
+
+
