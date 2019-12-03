@@ -26,7 +26,6 @@ group by YEAR, MONTH
 order by year, month;")
 flights <- dbFetch(res, -1)
 dbClearResult(res)
-flights
 ```
 ```{r, echo=TRUE,warning=FALSE, message=FALSE}
 res <- dbSendQuery(conn = dcon, "
@@ -36,7 +35,6 @@ DISTINCT YEAR, MONTH, DAY_OF_MONTH, DAY_OF_WEEK, TAIL_NUM, ORIGIN, DEST, DEP_TIM
 FROM flights);")
 flights <- dbFetch(res, -1)
 dbClearResult(res)
-flights
 ```
 
 
@@ -53,7 +51,6 @@ group by YEAR, MONTH, DAY_OF_MONTH;
 ")
 df4b <- dbFetch(res, -1)
 dbClearResult(res)
-df4b
 ```
 ```{r}
 times <- as.POSIXct(24*3600 * 0:1460, origin = '2015-01-01', tz = "GMT")
