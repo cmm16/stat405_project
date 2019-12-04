@@ -19,6 +19,41 @@ library(prophet)
 dcon <- dbConnect(SQLite(), dbname="C:/Users/bcard/Documents/SavedStuff/Stat405/group10.db")
 ```
 
+## Introduction 
+
+For our final project, we wanted to take a deep dive into the analysis of airports by examining flights, flight patterns, airlines, and reviews. In specific, we decided to analyze IAH because it is the closest major airport to Rice.
+
+#### Research Questions
+
+Some of the major research questions we wanted to address included:
+- What are the most popular airlines and destinations from IAH? 
+- How have flight patterns out of IAH changed over time? 
+- How does airport quality affect the number of flights and passengers going to an airport?
+
+#### Procedure 
+The overall procedure we used for our project was to first gather and clean data from five different data sources. We then explored the data to derive preliminary insights. We fit two models on the data: one model for sentiment analysis, and one model for time series. Lastly, we created two killer plots to summarize our findings. 
+
+## Data 
+
+Our project utilized 5 data sets: flight, passenger, review, logos. 
+
+#### Dataset 1: Flight Data 
+The flight dataset contains USA domestic flight information from 2015 - 2018. There are 6,287,635 entries and 21 attributes. The data comes from the Bureau of Transportation Statistics. Attributes of the dataset include: Year, month, day, day of the week, airline id, tail number, flight number, origin, origin city, dest, dest city, expected departure time, departure time, departure delay, arrival delay, cancelled (bool), carrier delay (bool), weather delay (bool). We used a subset of these dataset, only flights in 2018, for a majority of the plots throughout the report to zoom in on the most recent trends and minimize compute time. 
+
+#### Dataset 2: Passenger Data 
+The passenger dataset contains USA domestic flight passenger information from 2018. There are 381,291 entries and 19 attributes which include: seats, passengers, unique_carrier, origin, origin_city, origin_state, dest, dest_city, dest_state, aircraft_type, class (only passenger). The data comes from the Bureau of Transportation Statistics. We used this dataset to derive information such as the number of passengers flying, number of seats available, and number of seats not filled. 
+
+#### Dataset 3: Reviews Data
+The reviews dataset contains global airport reviews from 2015. There are 17,721 entries and 21 attributes. The datacomes from [airlinequality.com](https://www.airlinequality.com/). Attributes of the dataset include: airport_name, link, title, author, author_country, date, content, experience_airport, date_visit, type_traveller, overall_rating, queing_rating, terminal_cleanliness_rating, terminal_seating_rating, food_beverages_rating, airport_shopping_rating, wifi_connectivity_rating, airport_staff_rating, recommended. The airport_name attribute acted as a foreign key to the flights and passenger dataset. Alot of the attributes are very granular, such as queing rating and terminal seating rating, and sparse. Thus, we decided to only used the overall rating. 
+
+#### Dataset 4: Sentiment Synonym Data
+To create this dataset, we first compiled a list of the top 2,000 words across all airport reviews. To get the top 2,000 words across all reviews, we first parsed through all the reviews in the reviews dataset (content attribute). Then, for each top 2,000 word, we scraped [thesaurus.com](https://www.thesaurus.com/) for the top 10 synonyms, if available. We then created a dataset with 2,000 entries and 11 attributes. It follows that the attributes were word, synonym1, synonym2, synonym3, synonym4, synonym5, synonym6, synonym7, synonym8, synonym9, synonym10. The purpose of this dataset was to help condense the variablility of the words across all reviews. For example, there are a lot of synonyms one could use for good (such as wonderful, perfect, great, etc.). We use the top 10 synoynms for good to go through all the reviews and replace any of the synonyms with good. We then have a more condensed and still accurate measure of the number of times "good" or a similar word is used. 
+
+#### Dataset 5: Airport Logo Data
+This dataset consists of 12 jpeg images of airlines that fly out of IAH. We first subsetted the flights dataset to only flights from IAH, and then queried the unique airlines. We took the list of airlines and scraped [travelpayouts.com](https://support.travelpayouts.com/hc/en-us/articles/203956073-Airline-logos) for the images. We used this dataset for our second killer plot. 
+
+## Exploratory Data Analysis
+
 
 ## Modeling
 
@@ -77,3 +112,18 @@ texas_senti
 ```
 
 After plotting the results, we can conclude that performing sentiment analysis on airport reviews is a slightly strong indicator of airport quality. We were able to match the sentiment of the airport reviews with the average rating of the airport 68.991% of the time and we failed to match 31.009% of the time. We also can conclude that airport reviews for certain airports in Texas are more helpful for determining the quality of the airport than others. In particular, airport reviews for DAL, DFW, and IAH were strong indicators of the airport quality while airport reviews for AUS were very weak indicators of the airport quality. As a result, we can conclude that reading airport reviews is only sometimes useful for determining whether an airport is high or poor quality. 
+
+#### Time Series 
+
+
+## Killer Plots 
+
+#### Killer Plot 1 
+This killer plot is a summary of all of the key IAH findings. The killer plot is in the shape of a luggage with the legend in the luggage tag. There are 10 nodes in the plot, where each node represents one of the top 10 destinations from IAH. The size of the node represents the number of passengers that travel from IAH to the destination airport in one month. The color of the node represents the overall rating of the airport, taken as an average of all the overall_ratings attribute in the reviews dataset. The outline color of the node represents the sentiment rating of the airport, taken as an average of sentiment analysis from the reviews. In both the fill color and outline color, red means a negative review and green means a positive review. 
+The length of the edge represents the distance to the airport from IAH; further airports have a longer edge and closer airports have a shorter edge. The width of the edge represents the number of flights per month from IAH to the destination airport; the thicker an edge, the more flights there are. 
+
+We used shiny to make the plot interactive, so you can select a single month and see the results for the selected month. As you select different months, you can see the change over time. 
+
+#### Killer Plot 2
+
+## Conclusion 
