@@ -1,13 +1,14 @@
 ---
-title: "Group 10"
-author: "Henry Creamer, Melinda Ding, Aaryan Jadhav, Cole Morgan, Caleigh Page"
+title: "Flight and Airport Analysis"
+author: "Cole Morgan, Melinda Ding, Henry Creamer, Aaryan Jadhav, Caleigh Page (Group 10)"
 date: "December 6, 2019"
 output: ioslides_presentation
 runtime: shiny
-
 ---
 
 ```{r setup, include=FALSE}
+# runtime: shiny
+
 knitr::opts_chunk$set(echo = FALSE)
 ```
 
@@ -87,12 +88,7 @@ AIRLINE LOGO DATA
 - Scraped the airline logos from travelpayouts.com
 - Attributes: 12 jpeg images
 
-## Data Preparation 
 
-- Dropped rows that contained NA values for important attributes
-- Filtered data to ensure origin was IAH 
-- Grouped and counted data across many attributes
-- Ex: Dropped reviews that did not have rating score
 
 ## {.flexbox .vcenter}
 <div class="centered">
@@ -287,14 +283,24 @@ grid.arrange(num_flights, num_pass, nrow = 2)
 
 ## Empty Seats for Flights Out of IAH
 ```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
-DT = data.frame(
-  month = c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"),
-  Ineffeciency = c(1795726, 1790006, 795726, 1327422, 1299193, 1086968, 1291711, 1650673, 1733035, 1499018, 1352993, 1459601))
+res <- dbSendQuery(conn=dcon, "
+SELECT MONTH, SUM(SEATS) as CAPACITY, SUM(PASSENGERS) as FILLED
+FROM passengers 
+where ORIGIN == 'IAH'
+group by MONTH;
+")
+seats <- dbFetch(res, -1)
+dbClearResult(res)
+seats['EMPTY'] = seats$CAPACITY - seats$FILLED
 
-DT$month <- fct_relevel(DT$month, "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
-usingGg <- ggplot(data=DT, aes(x=DT$month, y=DT$Ineffeciency, group=1)) +
+seats$MONTH= c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+
+seats$MONTH = fct_relevel(seats$MONTH,"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+
+usingGg <- ggplot(data=seats, aes(x=seats$MONTH, y=seats$EMPTY, group=1)) +
   geom_line(col = "indianred1", lwd = 2)+
   geom_point(col = "indianred1", size = 3) + labs(title = "Empty Seats per Month from IAH in 2018", x= "Month", y = "Number of Empty Seats")
+
 usingGg
 ```
 
@@ -331,30 +337,10 @@ ggplot() +
   xlab("Overall Ratings") +
   ylab("Count") + 
   labs(fill = "Airports") +
-  ggtitle("Distribution of Ratings for Top 10 Airports in 2018") +
+  ggtitle("Distribution of Ratings for Top 10 Airports Out of IAH in 2018") +
   scale_x_continuous(breaks=c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
 ```
 
-
-## Most Common Words in Airport Reviews
-
-```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
-colfunc <- colorRampPalette(c("red", "orange", "green", "blue", "purple"))
-
-res <- dbSendQuery(conn = dcon, "
-SELECT *
-FROM top2kdf;")
-top2kdf <- dbFetch(res, -1)
-dbClearResult(res)
-all_words = as.vector(t(top2kdf))
-word_table = table(all_words)
-word_table = sort(word_table, decreasing=TRUE)
-word_df = data.frame(word_table[2:26])
-ggplot(data = word_df, aes(x=all_words, y=Freq)) + 
-  geom_bar(stat="identity", fill = colfunc(25)) +
-  labs(x="Word", y="Count", title="Top 25 Word Counts") +
-  theme(axis.text.x=element_text(angle=90, hjust=1, size=12)) + scale_color_gradient(low = "#132B43", high = "#56B1F7")
-```
 
 ## {.flexbox .vcenter}
 <div class="centered">
@@ -366,7 +352,7 @@ ggplot(data = word_df, aes(x=all_words, y=Freq)) +
 - Conducted sentiment analysis on the airport reviews
 - Used synonyms we scraped from thesaurus.com for our sentiment data set in order to condense the reviews
 - Used RSentiment package on these condensed reviews in order to determine if a review had a positive, neutral, or negative sentiment
-- Compared our sentiment score to the average rating of the aiport to analyze effectiveness of sentiment analysis
+- Compared our sentiment score to the average rating of the airport to analyze effectiveness of sentiment analysis
 
 ## Analyzing the Effectiveness of Sentiment Analysis
 
@@ -385,16 +371,16 @@ airport <- c(rep("AUS", texas_airports[1,3]), rep("DFW", texas_airports[2,3]), r
              rep("ELP", texas_airports[4,3]), rep("IAH", texas_airports[5,3]), rep("HOU", texas_airports[6,3]))
 
 
-Result  <- c(rep("Failure",5), rep("Success",3), rep("Failure",9), rep("Success",40),
-            rep("Success",3), rep("Failure",1), rep("Success",2), rep("Failure",28), rep("Success",69),
-            rep("Failure",2), rep("Success",2))
+Result  <- c(rep("Mismatch",5), rep("Match",3), rep("Mismatch",9), rep("Match",40),
+            rep("Match",3), rep("Mismatch",1), rep("Match",2), rep("Mismatch",28), rep("Match",69),
+            rep("Mismatch",2), rep("Match",2))
 data <- data.frame(airport,Result)
 
 ggplot(data, aes(fill=Result, x=airport)) + 
   geom_bar(position="fill") + 
   xlab("Texas Airports") + 
   ylab("Percentage of Reviews") + 
-  ggtitle("Accuracy for Sentiment Analysis Across Texas Airport Data") + scale_fill_manual(values = c("red", "darkgreen"))
+  ggtitle("Accuracy for Sentiment Analysis Across Texas Airport Data") + scale_fill_manual(values = c("darkgreen", "red"))
 ```
 
 
@@ -891,7 +877,7 @@ grid.arrange(a,b,c,d,nrow=4)
 ## Time Series Forecasting on Test Data
 ```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
 ggplot2::ggplot(df.cv, ggplot2::aes(x = ds, y = y)) +
-ggplot2::labs(x = "Number of Days Forecasted Out", y = "Number of Flights") +
+ggplot2::labs(x = "Month and Day", y = "Number of Flights") +
 ggplot2::ggtitle("Forecasted Number of Flights per Day Out of IAH vs. Actual") +
 ggplot2::geom_point(na.rm=TRUE) +
 ggplot2::geom_line(ggplot2::aes(y = yhat), color = "#0072B2",
@@ -912,8 +898,8 @@ test_mean <- mean(df.cv$y)
 ## Model Error
 Type         MAE          MAPE  
 -------     -------      ----------  
-     1      17.53556     0.04550617     
-     2      19.77747     0.04323118
+     Train      17.53556     0.04550617     
+     Test      19.77747     0.04323118
 
 ## {.flexbox .vcenter}
 <div class="centered">
@@ -926,9 +912,9 @@ Type         MAE          MAPE
 plot_nodes <- function(radius, rating, X, Y, sentiment, idx) {
   for (idx in 1:10){ 
     # Cutoff threshold is 5 because ratings can range from 1 to 10 
-    fillColor = ifelse(rating[idx] > 5.0, "green", "red")
+    fillColor = ifelse(rating[idx + ((idx-1)*10)] > 5.0, "green", "red")
     # Cutoff threshold is 0.0 because ratings can range from -1 to 1 
-    outlineColor = ifelse(sentiment[idx] > 0.0, "green", "red") 
+    outlineColor = ifelse(sentiment[idx + ((idx-1)*10)] > 0.2, "red", "green") 
     grid.circle(x = unit(X[idx], "npc"), y = unit(Y[idx], "npc"), r = unit(radius[idx], "npc"),
                 gp = gpar(fill = fillColor, col = outlineColor, lwd = 3))
   }
@@ -1042,6 +1028,8 @@ server <- function(input, output) {
 
 # Run the application 
 shinyApp(ui = ui, server = server)
+
+#my.grid.plot(alldata, 1)
 ```
 
 ## Killer Plot #2

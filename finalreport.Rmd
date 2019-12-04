@@ -1,0 +1,79 @@
+---
+title: "Flight and Airport Data Analysis"
+author: "Henry Creamer, Melinda Ding, Aaryan Jadhav, Caleigh Page, Cole Morgan (Group 10)"
+output: pdf_document
+fontsize: 10pt
+geometry: margin=1in
+---
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+library(RSQLite)
+library(ggplot2)
+library(tidyverse)
+library(grid)
+library(gridBase)
+library(gridExtra)
+library(shiny)
+library(dplyr)
+library(jpeg)
+library(prophet)
+dcon <- dbConnect(SQLite(), dbname="C:/Users/bcard/Documents/SavedStuff/Stat405/group10.db")
+```
+
+
+## Modeling
+
+#### Sentiment Analysis
+People often leave online reviews whenever they have strong feelings towards a product or place. However, these online reviews can often be misleading. We were curious how this phenomenon applied to airport reviews and whether airport reviews are truly a strong indicator of airport quality. As a result, we performed sentiment analysis on the airport reviews within our airport reviews dataset in order to investigate.
+
+In order to successfully perform sentiment analysis on the airport reviews, we first needed to condense the airport reviews. As a result, we found the 2,000 most common words within the reviews and then we web-scraped the top 10 synonyms for each of these words from thesaurus.com. Next, we condensed each of the reviews by replacing any occurrences of the synonyms we scraped with a single occurrence of the word from our list of 2,000 most common words. We were then able to use the RSentiment package on these condensed reviews in order to determine if a review had a positive, neutral, or negative sentiment. Once we had a sentiment score for each review, we then compared the sentiment score with the average rating of the airport by using cutoffs of 1-3 for negative sentiment, 4-6 for neutral sentiment, and 7-10 for positive sentiment. This allowed us to analyze the effectiveness of using sentiment analysis on the reviews to determine the quality of an airport as we were able see what percentage of sentiment scores matched with the average rating of the airport.
+
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+res <- dbSendQuery(conn = dcon, "
+SELECT airport_name as Airport, sum(match) as NumMatches, count(match) as TotalReviews
+FROM sentiment
+GROUP BY title;")
+matches_by_airport <- dbFetch(res, -1)
+dbClearResult(res)
+
+texas_airports <- matches_by_airport[matches_by_airport$Airport == "austin-airport" | matches_by_airport$Airport == "dallas-fort-worth-airport" | matches_by_airport$Airport == "dallas-love-field-airport" | matches_by_airport$Airport == "houston-george-bush-intercontinental-airport" | matches_by_airport$Airport == "houston-hobby-airport" | matches_by_airport$Airport == "el-paso-airport" ,]
+
+value <- texas_airports$TotalReviews
+airport <- c(rep("AUS", texas_airports[1,3]), rep("DFW", texas_airports[2,3]), rep("DAL", texas_airports[3,3]),
+             rep("ELP", texas_airports[4,3]), rep("IAH", texas_airports[5,3]), rep("HOU", texas_airports[6,3]))
+
+
+Result  <- c(rep("Mismatch",5), rep("Match",3), rep("Mismatch",9), rep("Match",40),
+            rep("Match",3), rep("Mismatch",1), rep("Match",2), rep("Mismatch",28), rep("Match",69),
+            rep("Mismatch",2), rep("Match",2))
+data <- data.frame(airport,Result)
+
+texas_senti <- ggplot(data, aes(fill=Result, x=airport)) + 
+  geom_bar(position="fill") + 
+  xlab("Texas Airports") + 
+  ylab("Percentage of Reviews") + 
+  ggtitle("Accuracy for Sentiment Analysis Across Texas Airport Data") + scale_fill_manual(values = c("darkgreen", "red"))
+
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM sentiment;")
+reviews <- dbFetch(res, -1)
+dbClearResult(res)
+
+percentage_incorrect <- sum(reviews$match / length(reviews$match))
+slices <- c(1-percentage_incorrect, percentage_incorrect) *100
+Result <- c("Percentage of Correct Matches", "Percentage of Incorrect Matches")
+slicedf <- data.frame(slices, Result)
+
+bp<- ggplot(slicedf, aes(x="", y=slices, fill=Result))+
+geom_bar(width = 1, stat = "identity") + coord_polar("y", start=0) + ggtitle("Matching Individual Reviews") + xlab("") + ylab("") + scale_fill_manual(values = c("green3", "red3"))
+```
+
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE, fig.height=2, fig.width=4}
+bp
+```
+
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE, fig.height=2, fig.width=5.5}
+texas_senti
+```
+
+After plotting the results, we can conclude that performing sentiment analysis on airport reviews is a slightly strong indicator of airport quality. We were able to match the sentiment of the airport reviews with the average rating of the airport 68.991% of the time and we failed to match 31.009% of the time. We also can conclude that airport reviews for certain airports in Texas are more helpful for determining the quality of the airport than others. In particular, airport reviews for DAL, DFW, and IAH were strong indicators of the airport quality while airport reviews for AUS were very weak indicators of the airport quality. As a result, we can conclude that reading airport reviews is only sometimes useful for determining whether an airport is high or poor quality. 
