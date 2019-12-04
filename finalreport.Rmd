@@ -113,7 +113,525 @@ texas_senti
 
 After plotting the results, we can conclude that performing sentiment analysis on airport reviews is a slightly strong indicator of airport quality. We were able to match the sentiment of the airport reviews with the average rating of the airport 68.991% of the time and we failed to match 31.009% of the time. We also can conclude that airport reviews for certain airports in Texas are more helpful for determining the quality of the airport than others. In particular, airport reviews for DAL, DFW, and IAH were strong indicators of the airport quality while airport reviews for AUS were very weak indicators of the airport quality. As a result, we can conclude that reading airport reviews is only sometimes useful for determining whether an airport is high or poor quality. 
 
-#### Time Series 
+#### Time Series
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+df_for_plotting <- function(m, fcst) {
+  # Make sure there is no y in fcst
+  fcst$y <- NULL
+  df <- m$history %>%
+    dplyr::select(ds, y) %>%
+    dplyr::full_join(fcst, by = "ds") %>%
+    dplyr::arrange(ds)
+  return(df)
+}
+
+seasonality_plot_df <- function(m, ds) {
+  df_list <- list(ds = ds, cap = 1, floor = 0)
+  for (name in names(m$extra_regressors)) {
+    df_list[[name]] <- 0
+  }
+  # Activate all conditional seasonality columns
+  for (name in names(m$seasonalities)) {
+    condition.name = m$seasonalities[[name]]$condition.name
+    if (!is.null(condition.name)) {
+      df_list[[condition.name]] <- TRUE
+    }
+  }
+  df <- as.data.frame(df_list)
+  df <- setup_dataframe(m, df)$df
+  return(df)
+}
+
+plot_weekly <- function(m, uncertainty = TRUE, weekly_start = 0, 
+                        name = 'weekly') {
+  # Compute weekly seasonality for a Sun-Sat sequence of dates.
+  days <- seq(set_date('2017-01-01'), by='d', length.out=7) + as.difftime(
+    weekly_start, units = "days")
+  df.w <- seasonality_plot_df(m, days)
+  seas <- predict_seasonal_components(m, df.w)
+  seas$dow <- factor(weekdays(df.w$ds), levels=weekdays(df.w$ds))
+
+  gg.weekly <- ggplot2::ggplot(
+      seas, ggplot2::aes_string(x = 'dow', y = name, group = 1)) +
+    ggplot2::geom_line(color = "#0072B2", na.rm = TRUE) +
+    ggplot2::labs(x = "Day of week")
+  if (uncertainty && m$uncertainty.samples) {
+    gg.weekly <- gg.weekly +
+      ggplot2::geom_ribbon(ggplot2::aes_string(ymin = paste0(name, '_lower'),
+                                               ymax = paste0(name, '_upper')),
+                           alpha = 0.2,
+                           fill = "#0072B2",
+                           na.rm = TRUE)
+  }
+  if (m$seasonalities[[name]]$mode == 'multiplicative') {
+    gg.weekly <- (
+      gg.weekly + ggplot2::scale_y_continuous(labels = scales::percent)
+    )
+  }
+  return(gg.weekly)
+}
+
+plot.prophet <- function(x, fcst, uncertainty = TRUE, plot_cap = TRUE,
+                         xlabel = 'ds', ylabel = 'y', ...) {
+  df <- df_for_plotting(x, fcst)
+  gg <- ggplot2::ggplot(df, ggplot2::aes(x = ds, y = y)) +
+    ggplot2::labs(x = "Date", y = "Number of Daily Flights") +
+    ggplot2::ggtitle("Number of flights per day out of IAH")
+  if (exists('cap', where = df) && plot_cap) {
+    gg <- gg + ggplot2::geom_line(
+      ggplot2::aes(y = cap), linetype = 'dashed', na.rm = TRUE)
+  }
+  if (x$logistic.floor && exists('floor', where = df) && plot_cap) {
+    gg <- gg + ggplot2::geom_line(
+      ggplot2::aes(y = floor), linetype = 'dashed', na.rm = TRUE)
+  }
+  if (uncertainty && x$uncertainty.samples && exists('yhat_lower', where = df)) {
+    gg <- gg +
+      ggplot2::geom_ribbon(ggplot2::aes(ymin = yhat_lower, ymax = yhat_upper),
+                           alpha = 0.2,
+                           fill = "#0072B2",
+                           na.rm = TRUE)
+  }
+  gg <- gg +
+    ggplot2::geom_point(na.rm=TRUE) +
+    ggplot2::geom_line(ggplot2::aes(y = yhat), color = "#0072B2",
+                       na.rm = TRUE) +
+    ggplot2::theme(aspect.ratio = 3 / 5)
+  return(gg)
+}
+
+plot_forecast_component <- function(
+  m, fcst, name, uncertainty = TRUE, plot_cap = FALSE
+) {
+  gg.comp <- ggplot2::ggplot(
+      fcst, ggplot2::aes_string(x = 'ds', y = name, group = 1)) +
+    ggplot2::geom_line(color = "#0072B2", na.rm = TRUE)
+  if (exists('cap', where = fcst) && plot_cap) {
+    gg.comp <- gg.comp + ggplot2::geom_line(
+      ggplot2::aes(y = cap), linetype = 'dashed', na.rm = TRUE)
+  }
+  if (exists('floor', where = fcst) && plot_cap) {
+    gg.comp <- gg.comp + ggplot2::geom_line(
+      ggplot2::aes(y = floor), linetype = 'dashed', na.rm = TRUE)
+  }
+  if (uncertainty && m$uncertainty.samples) {
+    gg.comp <- gg.comp +
+      ggplot2::geom_ribbon(
+        ggplot2::aes_string(
+          ymin = paste0(name, '_lower'), ymax = paste0(name, '_upper')
+        ),
+        alpha = 0.2,
+        fill = "#0072B2",
+        na.rm = TRUE)
+  }
+  if (name %in% m$component.modes$multiplicative) {
+    gg.comp <- gg.comp + ggplot2::scale_y_continuous(labels = scales::percent)
+  }
+  return(gg.comp)
+}
+
+set_date <- function(ds = NULL, tz = "GMT") {
+  if (length(ds) == 0) {
+    return(NULL)
+  }
+
+  if (is.factor(ds)) {
+    ds <- as.character(ds)
+  }
+
+  if (min(nchar(ds), na.rm=TRUE) < 12) {
+    ds <- as.POSIXct(ds, format = "%Y-%m-%d", tz = tz)
+  } else {
+    ds <- as.POSIXct(ds, format = "%Y-%m-%d %H:%M:%S", tz = tz)
+  }
+  attr(ds, "tzone") <- tz
+  return(ds)
+}
+
+setup_dataframe <- function(m, df, initialize_scales = FALSE) {
+  if (exists('y', where=df)) {
+    df$y <- as.numeric(df$y)
+  }
+  if (any(is.infinite(df$y))) {
+    stop("Found infinity in column y.")
+  }
+  df$ds <- set_date(df$ds)
+  if (anyNA(df$ds)) {
+    stop(paste('Unable to parse date format in column ds. Convert to date ',
+               'format (%Y-%m-%d or %Y-%m-%d %H:%M:%S) and check that there',
+               'are no NAs.'))
+  }
+  for (name in names(m$extra_regressors)) {
+    if (!(name %in% colnames(df))) {
+      stop('Regressor "', name, '" missing from dataframe')
+    }
+    df[[name]] <- as.numeric(df[[name]])
+    if (anyNA(df[[name]])) {
+      stop('Found NaN in column ', name)
+    }
+  }
+  for (name in names(m$seasonalities)) {
+    condition.name = m$seasonalities[[name]]$condition.name
+    if (!is.null(condition.name)) {
+      if (!(condition.name %in% colnames(df))) {
+        stop('Condition "', name, '" missing from dataframe')
+      }
+      if(!all(df[[condition.name]] %in% c(FALSE,TRUE))) {
+        stop('Found non-boolean in column ', name)
+      }
+      df[[condition.name]] <- as.logical(df[[condition.name]])
+    }
+  }
+  
+  df <- df %>%
+    dplyr::arrange(ds)
+
+  m <- initialize_scales_fn(m, initialize_scales, df)
+
+  if (m$logistic.floor) {
+    if (!('floor' %in% colnames(df))) {
+      stop("Expected column 'floor'.")
+    }
+  } else {
+    df$floor <- 0
+  }
+
+  if (m$growth == 'logistic') {
+    if (!(exists('cap', where=df))) {
+      stop('Capacities must be supplied for logistic growth.')
+    }
+    if (any(df$cap <= df$floor)) {
+      stop('cap must be greater than floor (which defaults to 0).')
+    }
+    df <- df %>%
+      dplyr::mutate(cap_scaled = (cap - floor) / m$y.scale)
+  }
+
+  df$t <- time_diff(df$ds, m$start, "secs") / m$t.scale
+  if (exists('y', where=df)) {
+    df$y_scaled <- (df$y - df$floor) / m$y.scale
+  }
+
+  for (name in names(m$extra_regressors)) {
+    props <- m$extra_regressors[[name]]
+    df[[name]] <- (df[[name]] - props$mu) / props$std
+  }
+  return(list("m" = m, "df" = df))
+}
+
+initialize_scales_fn <- function(m, initialize_scales, df) {
+  if (!initialize_scales) {
+    return(m)
+  }
+  if ((m$growth == 'logistic') && ('floor' %in% colnames(df))) {
+    m$logistic.floor <- TRUE
+    floor <- df$floor
+  } else {
+    floor <- 0
+  }
+  m$y.scale <- max(abs(df$y - floor))
+  if (m$y.scale == 0) {
+    m$y.scale <- 1
+  }
+  m$start <- min(df$ds)
+  m$t.scale <- time_diff(max(df$ds), m$start, "secs")
+  for (name in names(m$extra_regressors)) {
+    standardize <- m$extra_regressors[[name]]$standardize
+    n.vals <- length(unique(df[[name]]))
+    if (n.vals < 2) {
+      standardize <- FALSE
+    }
+    if (standardize == 'auto') {
+      if (n.vals == 2 && all(sort(unique(df[[name]])) == c(0, 1))) {
+        # Don't standardize binary variables
+        standardize <- FALSE
+      } else {
+        standardize <- TRUE
+      }
+    }
+    if (standardize) {
+      mu <- mean(df[[name]])
+      std <- stats::sd(df[[name]])
+      m$extra_regressors[[name]]$mu <- mu
+      m$extra_regressors[[name]]$std <- std
+    }
+  }
+  return(m)
+}
+
+time_diff <- function(ds1, ds2, units = "days") {
+  return(as.numeric(difftime(ds1, ds2, units = units)))
+}
+
+predict_seasonal_components <- function(m, df) {
+  out <- make_all_seasonality_features(m, df)
+  m <- out$m
+  seasonal.features <- out$seasonal.features
+  component.cols <- out$component.cols
+  if (m$uncertainty.samples){
+    lower.p <- (1 - m$interval.width)/2
+    upper.p <- (1 + m$interval.width)/2
+  }
+
+  X <- as.matrix(seasonal.features)
+  component.predictions <- data.frame(matrix(ncol = 0, nrow = nrow(X)))
+  for (component in colnames(component.cols)) {
+    beta.c <- t(m$params$beta) * component.cols[[component]]
+
+    comp <- X %*% beta.c
+    if (component %in% m$component.modes$additive) {
+      comp <- comp * m$y.scale
+    }
+    component.predictions[[component]] <- rowMeans(comp, na.rm = TRUE)
+    if (m$uncertainty.samples){
+      component.predictions[[paste0(component, '_lower')]] <- apply(
+        comp, 1, stats::quantile, lower.p, na.rm = TRUE)
+      component.predictions[[paste0(component, '_upper')]] <- apply(
+        comp, 1, stats::quantile, upper.p, na.rm = TRUE)
+    }
+  }
+  return(component.predictions)
+}
+
+make_seasonality_features <- function(dates, period, series.order, prefix) {
+  features <- fourier_series(dates, period, series.order)
+  colnames(features) <- paste(prefix, 1:ncol(features), sep = '_delim_')
+  return(data.frame(features))
+}
+
+make_all_seasonality_features <- function(m, df) {
+  seasonal.features <- data.frame(row.names = 1:nrow(df))
+  prior.scales <- c()
+  modes <- list(additive = c(), multiplicative = c())
+
+  # Seasonality features
+  for (name in names(m$seasonalities)) {
+    props <- m$seasonalities[[name]]
+    features <- make_seasonality_features(
+      df$ds, props$period, props$fourier.order, name)
+    if (!is.null(props$condition.name)) {
+      features[!df[[props$condition.name]],] <- 0
+    }
+    seasonal.features <- cbind(seasonal.features, features)
+    prior.scales <- c(prior.scales,
+                      props$prior.scale * rep(1, ncol(features)))
+    modes[[props$mode]] <- c(modes[[props$mode]], name)
+  }
+
+  # Holiday features
+  holidays <- construct_holiday_dataframe(m, df$ds)
+  if (nrow(holidays) > 0) {
+    out <- make_holiday_features(m, df$ds, holidays)
+    m <- out$m
+    seasonal.features <- cbind(seasonal.features, out$holiday.features)
+    prior.scales <- c(prior.scales, out$prior.scales)
+    modes[[m$seasonality.mode]] <- c(
+      modes[[m$seasonality.mode]], out$holiday.names
+    )
+  }
+
+  # Additional regressors
+  for (name in names(m$extra_regressors)) {
+    props <- m$extra_regressors[[name]]
+    seasonal.features[[name]] <- df[[name]]
+    prior.scales <- c(prior.scales, props$prior.scale)
+    modes[[props$mode]] <- c(modes[[props$mode]], name)
+  }
+
+  # Dummy to prevent empty X
+  if (ncol(seasonal.features) == 0) {
+    seasonal.features <- data.frame(zeros = rep(0, nrow(df)))
+    prior.scales <- c(1.)
+  }
+
+  components.list <- regressor_column_matrix(m, seasonal.features, modes)
+  return(list(m = m,
+              seasonal.features = seasonal.features,
+              prior.scales = prior.scales,
+              component.cols = components.list$component.cols,
+              modes = components.list$modes))
+}
+
+fourier_series <- function(dates, period, series.order) {
+  t <- time_diff(dates, set_date('1970-01-01 00:00:00'))
+  features <- matrix(0, length(t), 2 * series.order)
+  for (i in 1:series.order) {
+    x <- as.numeric(2 * i * pi * t / period)
+    features[, i * 2 - 1] <- sin(x)
+    features[, i * 2] <- cos(x)
+  }
+  return(features)
+}
+
+construct_holiday_dataframe <- function(m, dates) {
+  all.holidays <- data.frame()
+  if (!is.null(m$holidays)){
+    all.holidays <- m$holidays
+  }
+  if (!is.null(m$country_holidays)) {
+    year.list <- as.numeric(unique(format(dates, "%Y")))
+    country.holidays.df <- make_holidays_df(year.list, m$country_holidays)
+    all.holidays <- suppressWarnings(dplyr::bind_rows(all.holidays, country.holidays.df))
+  }
+  # If the model has already been fit with a certain set of holidays,
+  # make sure we are using those same ones.
+  if (!is.null(m$train.holiday.names)) {
+    row.to.keep <- which(all.holidays$holiday %in% m$train.holiday.names)
+    all.holidays <- all.holidays[row.to.keep,]
+    holidays.to.add <- data.frame(
+      holiday=setdiff(m$train.holiday.names, all.holidays$holiday)
+    )
+    all.holidays <- suppressWarnings(dplyr::bind_rows(all.holidays, holidays.to.add))
+  }
+  return(all.holidays)
+}
+
+regressor_column_matrix <- function(m, seasonal.features, modes) {
+  components <- dplyr::data_frame(component = colnames(seasonal.features)) %>%
+    dplyr::mutate(col = seq_len(dplyr::n())) %>%
+    tidyr::separate(component, c('component', 'part'), sep = "_delim_",
+                    extra = "merge", fill = "right") %>%
+    dplyr::select(col, component)
+  # Add total for holidays
+  if(!is.null(m$train.holiday.names)){
+    components <- add_group_component(
+      components, 'holidays', unique(m$train.holiday.names))
+  }
+  # Add totals for additive and multiplicative components, and regressors
+  for (mode in c('additive', 'multiplicative')) {
+    components <- add_group_component(
+      components, paste0(mode, '_terms'), modes[[mode]])
+    regressors_by_mode <- c()
+    for (name in names(m$extra_regressors)) {
+      if (m$extra_regressors[[name]]$mode == mode) {
+        regressors_by_mode <- c(regressors_by_mode, name)
+      }
+    }
+    components <- add_group_component(
+      components, paste0('extra_regressors_', mode), regressors_by_mode)
+    # Add combination components to modes
+    modes[[mode]] <- c(modes[[mode]], paste0(mode, '_terms'))
+    modes[[mode]] <- c(modes[[mode]], paste0('extra_regressors_', mode))
+  }
+  # After all of the additive/multiplicative groups have been added,
+  modes[[m$seasonality.mode]] <- c(modes[[m$seasonality.mode]], 'holidays')
+  # Convert to a binary matrix
+  component.cols <- as.data.frame.matrix(
+    table(components$col, components$component)
+  )
+  component.cols <- (
+    component.cols[order(as.numeric(row.names(component.cols))), ,
+                   drop = FALSE]
+  )
+  # Add columns for additive and multiplicative terms, if missing
+  for (name in c('additive_terms', 'multiplicative_terms')) {
+    if (!(name %in% colnames(component.cols))) {
+      component.cols[[name]] <- 0
+    }
+  }
+  # Remove the placeholder
+  components <- dplyr::filter(components, component != 'zeros')
+  # Validation
+  if (
+    max(component.cols$additive_terms
+    + component.cols$multiplicative_terms) > 1
+  ) {
+    stop('A bug occurred in seasonal components.')
+  }
+  # Compare to training, if set.
+  if (!is.null(m$train.component.cols)) {
+    component.cols <- component.cols[, colnames(m$train.component.cols)]
+    if (!all(component.cols == m$train.component.cols)) {
+      stop('A bug occurred in constructing regressors.')
+    }
+  }
+  return(list(component.cols = component.cols, modes = modes))
+}
+
+add_group_component <- function(components, name, group) {
+  new_comp <- components[(components$component %in% group), ]
+  group_cols <- unique(new_comp$col)
+  if (length(group_cols) > 0) {
+    new_comp <- data.frame(col=group_cols, component=name)
+    components <- rbind(components, new_comp)
+  }
+  return(components)
+}
+```
+
+To investigate our second research question, how flight patterns have changed over time, we decided to look at the daily number of flights going out of IAH from 2014 to the end of 2018. To access this data, we used a SQL statement on our flights data table. In this SQL statement, we specified only flights departing from IAH in 2014 - 2018 and grouped the results by day.
+
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+res <- dbSendQuery(conn=dcon, "
+SELECT ORIGIN, YEAR, MONTH, DAY_OF_MONTH, count(*) as count
+FROM (SELECT DISTINCT YEAR, MONTH, DAY_OF_MONTH, DAY_OF_WEEK, TAIL_NUM, ORIGIN, DEST, DEP_TIME
+FROM flights) as dr
+where dr.ORIGIN == 'IAH'
+group by YEAR, MONTH, DAY_OF_MONTH;
+")
+df4b <- dbFetch(res, -1)
+dbClearResult(res)
+
+times <- as.POSIXct(24*3600 * 0:1460, origin = '2015-01-01', tz = "GMT")
+df <- data.frame("ds" = times, "y" = df4b$count[0:1461])
+ggplot2::ggplot(df, ggplot2::aes(x = ds, y = y)) +
+ggplot2::labs(x = "Date", y = "Number of Flights out of IAH") +
+ggplot2::ggtitle("Flights per day out of IAH from 2015 to 2019") +
+ggplot2::geom_point(na.rm=TRUE) +
+ggplot2::theme(aspect.ratio = 3 / 5)
+```
+
+The plot of the daily data shows us that there are multiple signals contained in the data. There is a long term downward trend from 2014 to the beginning of 2018, but then a sudden increase at the start of 2018. There is also yearly, monthly, and weekly seasonality shown by the repeated cyclic patterns in the data. Due to the multiple seasonalities with high lag coefficients, we decided a complex SARIMA model would be difficult to correctly specify and train to convergence. Instead, we decided to train a generalized additive model (GAM) with automatic, function-based turn point analysis. This model is described in more detail in Taylor and Letham’s 2017 paper: Forecasting at Scale (https://doi.org/10.7287/peerj.preprints.3190v2). To summarize, the model is a function of time where we determine the daily number of flights by adding four key components long term trend, weekly seasonality, yearly seasonality, and the effect due to U.S. holidays.
+
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+m <- prophet()
+m <- add_country_holidays(m, country_name = 'US')
+m <- fit.prophet(m, df)
+future <- make_future_dataframe(m, periods = 1)
+forecast <- predict(m, future)
+df.cv <- cross_validation(m, initial=1400, period = 1, horizon=60, units = 'days')
+df.p <- performance_metrics(df.cv)
+plot(m, forecast)
+```
+
+
+The fitted model visually appears to be doing well, but to get a better understanding of how the model is making its predictions, we decided to look at all of its individual components. To determine the model’s robustness and generalizability on new data, we decided to train the model on all four years, minus two months of data. We then take the trained model and forecast the last two months and compare the forecasted predictions to the reality of the last two months. We will then evaluate the model by looking at how it does on the training and test data using mean absolute error (MAE) and mean percent absolute error (MAPE). 
+
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+components <- prophet_plot_components(m, forecast, render_plot=FALSE)
+a <- components[[1]] + labs(x = "Year", y="") + ggtitle("Trend Component")
+b <- components[[2]] + labs(x = "Year", y = "") + ggtitle("Holiday Component")
+c <- components[[3]] + labs(x = "Day of the Week", y="") + ggtitle("Weekly Seasonal Component")
+d <- components[[4]] + labs(x = "Month and Day", y="") + ggtitle("Yearly Seasonal Component")
+grid.arrange(a,b,c,d,nrow=4)
+```
+
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+ggplot2::ggplot(df.cv, ggplot2::aes(x = ds, y = y)) +
+ggplot2::labs(x = "Month and Day", y = "Number of Flights") +
+ggplot2::ggtitle("Forecasted Number of Flights per Day Out of IAH vs. Actual") +
+ggplot2::geom_point(na.rm=TRUE) +
+ggplot2::geom_line(ggplot2::aes(y = yhat), color = "#0072B2",
+                       na.rm = TRUE) +
+    ggplot2::theme(aspect.ratio = 3 / 5)
+
+train_rmse <- mean(((m$history$y - forecast$yhat[0:length(m$history$y)])**2)**.5)
+train_mae <- mean(abs(m$history$y - forecast$yhat[0:length(m$history$y)]))
+train_mape <- mean(abs(m$history$y - forecast$yhat[0:length(m$history$y)])/m$history$y)
+train_mean <- mean(m$history$y)
+
+test_rmse <- mean(df.p$rmse)
+test_mae <- mean(df.p$mae)
+test_mape <- mean(df.p$mape)
+test_mean <- mean(df.cv$y)
+```
+
+Type         MAE          MAPE  
+-------     -------      ----------  
+     Train      17.53556     0.04550617     
+     Test      19.77747     0.04323118
+
+Visually and based on the error metrics, the model is performing quite well and generalizes extraordinarily well. The MAPE of the training data was 4.5%, meaning for any given day, the model will, on average, predict plus or minus 4.5% off of the actual value, which given the high level of volatility in the data, is quite good. The MAPE of the test data was even better at 4.3%. We explain this because the spike experienced at the beginning of 2018 is contained in the training data and most likely drives a large portion of the training set’s error. Due to the model’s accuracy and robustness, we get a good sense of how flights out of IAH have changed over time and can be confident in any forecasts we make within a reasonable time horizon.
 
 
 ## Killer Plots 
