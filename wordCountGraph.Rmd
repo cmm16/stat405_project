@@ -1,0 +1,30 @@
+---
+title: "Group 10"
+author: "Henry Creamer, Melinda Ding, Aaryan Jadhav, Cole Morgan, Caleigh Page"
+date: "December 6, 2019"
+output: ioslides_presentation
+runtime: shiny
+---
+
+
+
+## Most Common Words in Airport Reviews
+
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+colfunc <- colorRampPalette(c("red", "orange", "green", "blue", "purple"))
+
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM top2kdf;")
+top2kdf <- dbFetch(res, -1)
+dbClearResult(res)
+all_words = as.vector(t(top2kdf))
+word_table = table(all_words)
+word_table = sort(word_table, decreasing=TRUE)
+word_df = data.frame(word_table[2:26])
+ggplot(data = word_df, aes(x=all_words, y=Freq)) + 
+  geom_bar(stat="identity", fill = colfunc(25)) +
+  labs(x="Word", y="Count", title="Top 25 Word Counts from Airport Reviews") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, size=12)) + scale_color_gradient(low = "#132B43", high = "#56B1F7")
+```
+
