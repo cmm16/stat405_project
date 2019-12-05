@@ -20,11 +20,9 @@ dcon <- dbConnect(SQLite(), dbname="C:/Users/bcard/Documents/SavedStuff/Stat405/
 ```
 
 ## Introduction 
-
 For our final project, we wanted to take a deep dive into the analysis of airports by examining flights, flight patterns, airlines, and reviews. In specific, we decided to analyze IAH because it is the closest major airport to Rice.
 
 #### Research Questions
-
 Some of the major research questions we wanted to address included:
 - What are the most popular airlines and destinations from IAH? 
 - How have flight patterns out of IAH changed over time? 
@@ -34,8 +32,7 @@ Some of the major research questions we wanted to address included:
 The overall procedure we used for our project was to first gather and clean data from five different data sources. We then explored the data to derive preliminary insights. We fit two models on the data: one model for sentiment analysis, and one model for time series. Lastly, we created two killer plots to summarize our findings. 
 
 ## Data 
-
-Our project utilized 5 data sets: flight, passenger, review, logos. 
+Our project utilized 5 data sets: flight, passenger, sentiment, review, logos. 
 
 #### Dataset 1: Flight Data 
 The flight dataset contains USA domestic flight information from 2015 - 2018. There are 6,287,635 entries and 21 attributes. The data comes from the Bureau of Transportation Statistics. Attributes of the dataset include: Year, month, day, day of the week, airline id, tail number, flight number, origin, origin city, dest, dest city, expected departure time, departure time, departure delay, arrival delay, cancelled (bool), carrier delay (bool), weather delay (bool). We used a subset of these dataset, only flights in 2018, for a majority of the plots throughout the report to zoom in on the most recent trends and minimize compute time. 
@@ -53,7 +50,281 @@ To create this dataset, we first compiled a list of the top 2,000 words across a
 This dataset consists of 12 jpeg images of airlines that fly out of IAH. We first subsetted the flights dataset to only flights from IAH, and then queried the unique airlines. We took the list of airlines and scraped [travelpayouts.com](https://support.travelpayouts.com/hc/en-us/articles/203956073-Airline-logos) for the images. We used this dataset for our second killer plot. 
 
 ## Exploratory Data Analysis
+In order to examine our research questions, we conducted some exploratory analysis of the data. The goal of our EDA was to examine patterns or trends in the data to determine the important characteristics and get a sense for the data beyond our initial glances. We created visualizations using data from our flights, reviews, and passengers datasets. 
 
+#### Texas Airports Top Destinations
+For our first graph, we wanted to get an understanding on the main airports in Texas. Since we had already decided to focus our report on IAH, we looked at the three other most traveled airports in Texas as a comparison to IAH. The graph shows the top 20 most common destinations out of IAH, DFW, AUS, and DAL. Although the airports each had their own popular destinations, we noticed common destinations amongst the airports. IAH and DFW both had ORD as their most traveled destination while DAL and AUS most traveled destination were airports in Texas. HOU and DFW are both big hubs and common places to fly through when traveling so it makes sense that their common destinations are outside of Texas.  
+
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+res <- dbSendQuery(conn = dcon, "
+SELECT ORIGIN, count(*) as c
+FROM flights
+GROUP BY ORIGIN 
+ORDER BY c DESC")
+topOutgoing <- dbFetch(res, -1)
+txairports <- c("ABI", "AUS", "CRP", "DFW", "DAL", "ELP", "GRK", "IAH", "HOU", "LBB", "MAF", "SAT", "ACT", "SPS")
+topOutTexas <- topOutgoing$ORIGIN[topOutgoing$ORIGIN %in% txairports]
+top4Texas <- topOutTexas[1:4]
+dbClearResult(res)
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM flights
+WHERE ORIGIN = 'IAH';")
+iahFlights <- dbFetch(res, -1)
+dbClearResult(res)
+
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM flights
+WHERE ORIGIN = 'AUS';")
+ausflights <- dbFetch(res, -1)
+dbClearResult(res)
+
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM flights
+WHERE ORIGIN = 'DFW';")
+dfwFlights <- dbFetch(res, -1)
+dbClearResult(res)
+
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM flights
+WHERE ORIGIN = 'DAL';")
+dalFlights <- dbFetch(res, -1)
+dbClearResult(res)
+
+# IAH
+n <- length(sort(table(iahFlights$DEST)))
+top20 <- data.frame(sort(table(iahFlights$DEST))[(n -20):n]) 
+top20names <- as.vector(top20$Var1)
+top20data <- iahFlights[iahFlights$DEST %in% top20names, ]
+p1 <- ggplot() + 
+  geom_bar(data=top20data, aes(DEST), color="black", fill="lightblue") + 
+  theme(axis.text.x=element_text(angle=90, hjust=1, size=9)) +
+  ylab("Number of Flights") + 
+  xlab("Destination") +
+  ggtitle("Top 20 Destinations from IAH")
+
+# AUS
+n <- length(sort(table(ausflights$DEST)))
+top20 <- data.frame(sort(table(ausflights$DEST))[(n -20):n]) 
+top20names <- as.vector(top20$Var1)
+top20data <- ausflights[ausflights$DEST %in% top20names, ]
+p2 <- ggplot() + 
+  geom_bar(data=top20data, aes(DEST), color="black", fill="pink") + 
+  theme(axis.text.x=element_text(angle=90, hjust=1, size=9)) +
+  ylab("Number of Flights") + 
+  xlab("Destination") +
+  ggtitle("Top 20 Destinations from AUS")
+
+# DFW
+n <- length(sort(table(dfwFlights$DEST)))
+top20 <- data.frame(sort(table(dfwFlights$DEST))[(n -20):n]) 
+top20names <- as.vector(top20$Var1)
+top20data <- dfwFlights[dfwFlights$DEST %in% top20names, ]
+p3 <- ggplot() + 
+  geom_bar(data=top20data, aes(DEST), color="black", fill="lightgreen") + 
+  theme(axis.text.x=element_text(angle=90, hjust=1, size=9)) +
+  ylab("Number of Flights") + 
+  xlab("Destination") +
+  ggtitle("Top 20 Destinations from DFW")
+
+# DAL
+n <- length(sort(table(dalFlights$DEST)))
+top20 <- data.frame(sort(table(dalFlights$DEST))[(n -20):n]) 
+top20names <- as.vector(top20$Var1)
+top20data <- dalFlights[dalFlights$DEST %in% top20names, ]
+p4 <- ggplot() + 
+  geom_bar(data=top20data, aes(DEST), color="black", fill="purple") + 
+  theme(axis.text.x=element_text(angle=90, hjust=1, size=9)) +
+  ylab("Number of Flights") + 
+  xlab("Destination") +
+  ggtitle("Top 20 Destinations from DAL")
+
+grid.arrange(p1, p2, p3, p4, nrow = 2)
+```
+
+#### IAH Flight and Passenger Data in 2018
+These graphs look at the number of flights leaving IAH in addition to the number of passengers being transported. As we expected, the graphs closely resemble each other as we were able to see the peaks and falls in each respective graphs during the same months. The summer months had large spikes in both number of flights and passengers which is most likely due to the fact that people are going on vacation more in the summer months. August has the largest number of planes leaving IAH however the number of passengers flying decreases from July to August. We think this discrepancy could come from airlines overcorrecting for the summer demand too late in the season.   
+
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+top10names <- c("ATL", "CLT", "DEN", "DFW", "DTW", "EWR", "LGA", "MSP", "ORD", "SFO")
+
+# Count number of ppl that go to each airport from IAH 
+res <- dbSendQuery(conn = dcon, "
+SELECT DEST as dest, MONTH as month, SUM(PASSENGERS) as passenger_count
+FROM passengers
+WHERE ORIGIN = 'IAH'
+GROUP BY DEST, MONTH;")
+iahPassengers_total <- dbFetch(res, -1)
+iahPassengers = iahPassengers_total[iahPassengers_total$dest %in% top10names,]
+dbClearResult(res)
+
+# Get count of number of flights out of IAH to each DEST
+res <- dbSendQuery(conn = dcon, "
+SELECT DEST as dest, MONTH as month, COUNT(*) as flight_count, DISTANCE as distance
+FROM (SELECT DISTINCT YEAR, MONTH, DAY_OF_MONTH, DAY_OF_WEEK, TAIL_NUM, ORIGIN, DEST, DEP_TIME, DISTANCE
+FROM flights)
+WHERE ORIGIN = 'IAH' and YEAR = 2018
+GROUP BY DEST, MONTH;")
+iahFlightCount <- dbFetch(res, -1)
+dbClearResult(res)
+top10FlightCount = iahFlightCount[iahFlightCount$dest %in% top10names,]
+
+# Get average rating from passengers
+res <- dbSendQuery(conn = dcon, "
+SELECT airport_code as dest, airport_name, AVG(overall_rating) as average_rating, AVG(clipped_sentiment) as review_rating
+FROM sentiment
+GROUP BY airport_name;")
+raw_reviews <- dbFetch(res, -1)
+dbClearResult(res)
+reviews = raw_reviews[raw_reviews$dest %in% top10names,]
+
+join1 = merge(iahPassengers, top10FlightCount, by=c("dest", "month"))
+alldata = data.frame(merge(join1, reviews, by="dest"))
+
+# Data preparation for graphing 
+
+# Get the max per month 
+max_passengers = data.frame(alldata %>% group_by(month) %>% summarise(max = max(passenger_count)))
+max_flights = data.frame(alldata %>% group_by(month) %>% summarise(max = max(flight_count)))
+
+regularized_passengers = c() 
+regularized_flights = c()
+
+for (row in 1:nrow(alldata)) {
+    max_flight_count = max_flights[max_flights$month == 2,]$max
+    new_flight_count = alldata[row, "flight_count"]*6 / (max_flight_count)
+    regularized_flights = c(regularized_flights, new_flight_count)
+    
+    max_passenger_count = max_passengers[max_passengers$month == 2,]$max
+    new_passenger_count = alldata[row, "passenger_count"] / (max_passenger_count*15)
+    regularized_passengers = c(regularized_passengers, new_passenger_count)
+}
+
+alldata$passenger_count_regularized = regularized_passengers
+alldata$flight_count_regularized = regularized_flights
+
+# Join all the data together 
+total_flights = as.data.frame(alldata %>% 
+  group_by(month) %>% 
+  summarise(Flights = sum(flight_count)))
+
+total_flights$month <- c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+total_flights$month <- fct_relevel(total_flights$month, "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+
+num_flights <- ggplot(data = total_flights) + 
+  aes(x=total_flights$month, y=total_flights$Flights, group = 1) + 
+  geom_line(stat="identity", col = "royalblue1", lwd = 2) +
+  geom_point(col = "royalblue1", size = 3) +
+  ggtitle("Number of Flights Per Month Out of IAH in 2018") + 
+  xlab("Month") + 
+  ylab("Number of Flights")
+
+# Join all the data together 
+total_passengers = as.data.frame(alldata %>% 
+  group_by(month) %>% 
+  summarise(Passengers = sum(passenger_count)))
+
+total_passengers$month <- c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+total_passengers$month <- fct_relevel(total_passengers$month, "Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+
+num_pass <- ggplot(data = total_passengers) + 
+  aes(x=month, y=Passengers, group = 1) + 
+  geom_line(stat="identity", col = "royalblue1", lwd = 2) + 
+  geom_point(col = "royalblue1", size = 3) +
+  ggtitle("Number of Passengers Per Month Out of IAH in 2018") + 
+  xlab("Month") + 
+  ylab("Number of Passengers")
+
+grid.arrange(num_flights, num_pass, nrow = 2)
+
+```
+
+#### Empty Seats for Flights out of IAH
+The graph showing the number of empty seats on flights out of IAH is a visualization for the passenger inefficiencies each month. The graph follows similar logic to the graphs associated with IAH flight and passenger data. The summer months have have very few seats that go empty due to the fact that summer is a popular travel time. We see a large spike in September which is an interesting area for further exploration to understand why this pattern exists. The increase in empty seats in August we believe can be attributed to the failure of airlines to predict passengers' inclinations for flying.  
+
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+res <- dbSendQuery(conn=dcon, "
+SELECT MONTH, SUM(SEATS) as CAPACITY, SUM(PASSENGERS) as FILLED
+FROM passengers 
+where ORIGIN == 'IAH'
+group by MONTH;
+")
+seats <- dbFetch(res, -1)
+dbClearResult(res)
+seats['EMPTY'] = seats$CAPACITY - seats$FILLED
+
+seats$MONTH= c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+
+seats$MONTH = fct_relevel(seats$MONTH,"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+
+usingGg <- ggplot(data=seats, aes(x=seats$MONTH, y=seats$EMPTY, group=1)) +
+  geom_line(col = "indianred1", lwd = 2)+
+  geom_point(col = "indianred1", size = 3) + labs(title = "Empty Seats per Month from IAH in 2018", x= "Month", y = "Number of Empty Seats")
+
+usingGg
+```
+
+#### Distribution of Airport Ratings 
+We then shifted our analysis to the reviews dataset where we examined the distribution of airport ratings for the 10 most common destinations out of IAH. We used the overall ratings given in the dataset to compare the airports and their accompanying review distributions. Our main take-away was that the review distribution skewed heavily towards the negative side. This makes sense since people are more inclined to leave a review if they had an extreme feeling towards the airport, especially if it was negative. 
+
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM flights2018
+WHERE ORIGIN = 'IAH' and year = 2018;")
+iahFlights <- dbFetch(res, -1)
+dbClearResult(res)
+
+n <- length(sort(table(iahFlights$DEST)))
+top20 <- data.frame(sort(table(iahFlights$DEST))[(n -9):n]) 
+top20names <- as.vector(top20$Var1)
+top10data <- iahFlights[iahFlights$DEST %in% top20names, ]
+
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM sentiment;")
+reviews <- dbFetch(res, -1)
+dbClearResult(res)
+
+top10 <- c("atlanta-hartsfield-airport", "newark-airport", "dallas-fort-worth-airport", "denver-airport",
+           "san-francisco-airport", "charlotte-airport", "detroit-airport", "la-guardia-airport",
+           "chicago-ohare-airport", "minneapolis-st-paul-airport")
+top <- reviews[reviews$airport_name %in% top10, ]
+
+
+ggplot() + 
+  geom_bar(data=top, aes(x = overall_rating, fill = factor(airport_name))) + 
+  theme(axis.text.x=element_text(hjust=1, size=9)) +
+  xlab("Overall Ratings") +
+  ylab("Count") + 
+  labs(fill = "Airports") +
+  ggtitle("Distribution of Ratings for Top 10 Airports Out of IAH in 2018") +
+  scale_x_continuous(breaks=c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+```
+
+#### Most Common Words in Airport Reviews
+In order to conduct our sentiment analysis that is discussed more later in the report, we found the 20,000 most common words in all the reviews. From there, we found the 25 most common words in the 20,000 original words and all their synonyms. The graph shows these 25 words and the frequency at which they occurred in our sentiment dataset. We were able to use these words to condense our reviews to aid in the sentiment interpretation of each review.
+
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+colfunc <- colorRampPalette(c("red", "orange", "green", "blue", "purple"))
+
+res <- dbSendQuery(conn = dcon, "
+SELECT *
+FROM top2kdf;")
+top2kdf <- dbFetch(res, -1)
+dbClearResult(res)
+all_words = as.vector(t(top2kdf))
+word_table = table(all_words)
+word_table = sort(word_table, decreasing=TRUE)
+word_df = data.frame(word_table[2:26])
+ggplot(data = word_df, aes(x=all_words, y=Freq)) + 
+  geom_bar(stat="identity", fill = colfunc(25)) +
+  labs(x="Word", y="Count", title="Top 25 Word Counts from Airport Reviews") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, size=12)) + scale_color_gradient(low = "#132B43", high = "#56B1F7")
+```
 
 ## Modeling
 
