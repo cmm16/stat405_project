@@ -32,7 +32,7 @@ Some of the major research questions we wanted to address included:
 The overall procedure we used for our project was to first gather and clean data from five different data sources. We then explored the data to derive preliminary insights. We fit two models on the data: one model for sentiment analysis, and one model for time series. Lastly, we created two killer plots to summarize our findings. 
 
 ## Data 
-Our project utilized 5 data sets: flight, passenger, sentiment, review, logos. 
+Our project utilized 5 data sets: flight, passenger, sentiment synonym, review, logos. 
 
 #### Dataset 1: Flight Data 
 The flight dataset contains USA domestic flight information from 2015 - 2018. There are 6,287,635 entries and 21 attributes. The data comes from the Bureau of Transportation Statistics. Attributes of the dataset include: Year, month, day, day of the week, airline id, tail number, flight number, origin, origin city, dest, dest city, expected departure time, departure time, departure delay, arrival delay, cancelled (bool), carrier delay (bool), weather delay (bool). We used a subset of these dataset, only flights in 2018, for a majority of the plots throughout the report to zoom in on the most recent trends and minimize compute time. 
@@ -55,7 +55,7 @@ In order to examine our research questions, we conducted some exploratory analys
 #### Texas Airports Top Destinations
 For our first graph, we wanted to get an understanding on the main airports in Texas. Since we had already decided to focus our report on IAH, we looked at the three other most traveled airports in Texas as a comparison to IAH. The graph shows the top 20 most common destinations out of IAH, DFW, AUS, and DAL. Although the airports each had their own popular destinations, we noticed common destinations amongst the airports. IAH and DFW both had ORD as their most traveled destination while DAL and AUS most traveled destination were airports in Texas. HOU and DFW are both big hubs and common places to fly through when traveling so it makes sense that their common destinations are outside of Texas.  
 
-```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE, fig.height=4, fig.width=6}
 res <- dbSendQuery(conn = dcon, "
 SELECT ORIGIN, count(*) as c
 FROM flights
@@ -447,7 +447,7 @@ plot.prophet <- function(x, fcst, uncertainty = TRUE, plot_cap = TRUE,
   df <- df_for_plotting(x, fcst)
   gg <- ggplot2::ggplot(df, ggplot2::aes(x = ds, y = y)) +
     ggplot2::labs(x = "Date", y = "Number of Daily Flights") +
-    ggplot2::ggtitle("Number of flights per day out of IAH")
+    ggplot2::ggtitle("Number of Flights per Day Out of IAH")
   if (exists('cap', where = df) && plot_cap) {
     gg <- gg + ggplot2::geom_line(
       ggplot2::aes(y = cap), linetype = 'dashed', na.rm = TRUE)
@@ -908,11 +908,263 @@ Visually and based on the error metrics, the model is performing quite well and 
 ## Killer Plots 
 
 #### Killer Plot 1 
-This killer plot is a summary of all of the key IAH findings. The killer plot is in the shape of a luggage with the legend in the luggage tag. There are 10 nodes in the plot, where each node represents one of the top 10 destinations from IAH. The size of the node represents the number of passengers that travel from IAH to the destination airport in one month. The color of the node represents the overall rating of the airport, taken as an average of all the overall_ratings attribute in the reviews dataset. The outline color of the node represents the sentiment rating of the airport, taken as an average of sentiment analysis from the reviews. In both the fill color and outline color, red means a negative review and green means a positive review. 
+
+The first killer plot we created is a summary of all of the key IAH findings. The killer plot is in the shape of a luggage with the legend in the luggage tag. There are 10 nodes in the plot, where each node represents one of the top 10 destinations from IAH. The size of the node represents the number of passengers that travel from IAH to the destination airport in one month. The color of the node represents the overall rating of the airport, taken as an average of all the overall_ratings attribute in the reviews dataset. The outline color of the node represents the sentiment rating of the airport, taken as an average of sentiment analysis from the reviews. In both the fill color and outline color, red means a negative review and green means a positive review. 
 The length of the edge represents the distance to the airport from IAH; further airports have a longer edge and closer airports have a shorter edge. The width of the edge represents the number of flights per month from IAH to the destination airport; the thicker an edge, the more flights there are. 
 
-We used shiny to make the plot interactive, so you can select a single month and see the results for the selected month. As you select different months, you can see the change over time. 
+We used shiny to make the plot interactive in our presentation, so you can select a single month and see the results for the selected month. As you select different months, you can see the change over time. For the purposes of the report, we only displayed January data.
+
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE}
+plot_nodes <- function(radius, rating, X, Y, sentiment, idx) {
+  for (idx in 1:10){ 
+    # Cutoff threshold is 5 because ratings can range from 1 to 10 
+    fillColor = ifelse(rating[idx + ((idx-1)*10)] > 5.0, "green", "red")
+    # Cutoff threshold is 0.0 because ratings can range from -1 to 1 
+    outlineColor = ifelse(sentiment[idx + ((idx-1)*10)] > 0.2, "red", "green") 
+    grid.circle(x = unit(X[idx], "npc"), y = unit(Y[idx], "npc"), r = unit(radius[idx], "npc"),
+                gp = gpar(fill = fillColor, col = outlineColor, lwd = 3))
+  }
+}
+
+label_nodes <- function(labels, X, Y) {
+  for (i in 1:10){
+    grid.text(labels[i], x = unit(X[i], "npc"), y = unit(Y[i], "npc"), gp = gpar(fontsize = 7))
+  }
+}
+
+plot_luggage <- function() {
+  grid.rect(x = unit(0.5, "npc"), y = unit(0.40, "npc"), width = unit(0.80, "npc"), 
+            height = unit(0.70, "npc"), gp = gpar(lwd = 4))
+  grid.lines(x = unit(c(0.25, 0.25), "npc"),y = unit(c(0.75, 0.92), "npc"), gp = gpar(lwd = 4))
+  grid.lines(x = unit(c(0.75, 0.75), "npc"),y = unit(c(0.75, 0.92), "npc"), gp = gpar(lwd = 4))
+  grid.lines(x = unit(c(0.25, 0.75), "npc"),y = unit(c(0.92, 0.92), "npc"), gp = gpar(lwd = 4))
+  grid.lines(x = unit(c(0.30, 0.30), "npc"),y = unit(c(0.75, 0.85), "npc"), gp = gpar(lwd = 4))
+  grid.lines(x = unit(c(0.70, 0.70), "npc"),y = unit(c(0.75, 0.85), "npc"), gp = gpar(lwd = 4))
+  grid.lines(x = unit(c(0.30, 0.70), "npc"),y = unit(c(0.85, 0.85), "npc"), gp = gpar(lwd = 4))
+  grid.text("Top 10 Airport Destinations from IAH January 2018 Analysis", x = unit(0.50, "npc"), 
+            y = unit(0.885, "npc"),gp = gpar(fontsize = 9, fontface = 'bold'))
+}
+
+plot_legend <- function() {
+  grid.lines(x = unit(c(0.70, 0.85), "npc"), y = unit(c(0.80, 0.70), "npc"), gp = gpar(lwd = 4))
+  grid.rect(x = unit(0.83, "npc"), y = unit(0.60, "npc"), width = unit(0.305, "npc"), 
+            height = unit(0.26, "npc"), gp = gpar(lwd = 4))
+  grid.text("Legend:", x = unit(0.73, "npc"), y = unit(0.71, "npc"), 
+            gp = gpar(fontsize = 10, fontface = 'bold'))
+  grid.text("Size of Node = Passengers per month", x = unit(0.695, "npc"), 
+            y = unit(0.68, "npc"),gp = gpar(fontsize = 8), just = "left")
+  grid.text("Red Node = Low rated airport", x = unit(0.695, "npc"), 
+            y = unit(0.65, "npc"),gp = gpar(fontsize = 8), just = "left")
+  grid.text("Green Node = High rated airport", x = unit(0.695, "npc"), 
+            y = unit(0.62, "npc"),gp = gpar(fontsize = 8), just = "left")
+  grid.text("Red Border = Negative airport reviews", x = unit(0.695, "npc"), 
+            y = unit(0.59, "npc"),gp = gpar(fontsize = 8), just = "left")
+  grid.text("Green Border = Positive airport reviews", x = unit(0.695, "npc"), 
+            y = unit(0.56, "npc"),gp = gpar(fontsize = 8), just = "left")
+  grid.text("Edge Length = Distance to Airport", x = unit(0.695, "npc"), 
+            y = unit(0.53, "npc"),gp = gpar(fontsize = 8), just = "left")
+  grid.text("Width of Edge = Flights per month", x = unit(0.695, "npc"), 
+            y = unit(0.50, "npc"),gp = gpar(fontsize = 8), just = "left")
+}
+
+plot_edges <- function(U, V, weights) {
+  for (i in 1:10){
+    grid.lines(x = unit(c(0.4, U[i]), "npc"), y = unit(c(0.12, V[i]), "npc"), gp = gpar(lwd = weights[i]))
+  }
+}
+
+my.grid.plot <- function(data, month){
+  grid.newpage()
+  grid.layout(1,2)
+  top.vp <- viewport(width = 1.0, height = 1.0)
+  pushViewport(top.vp)
+  
+  plot_luggage()
+  plot_legend()
+  
+  # Create IAH Node 
+  grid.circle(x = unit(0.4, "npc"), y = unit(0.12, "npc"), r = unit(0.03, "npc"), gp = gpar(fill = "black"))
+  grid.text("IAH", x=unit(0.4, "npc"), y=unit(0.075, "npc"), gp=gpar(fontsize=8))
+  
+  # Create Edges 
+  #     689,  912   862   224   1075  1400  1416  1034  925   1635
+  X = c(0.18, 0.20, 0.33, 0.30, 0.43, 0.53, 0.63, 0.68, 0.63, 0.75)
+  Y = c(0.38, 0.53, 0.45, 0.13, 0.55, 0.66, 0.61, 0.43, 0.23, 0.15)
+  weights = data[data$month == month,]$flight_count_regularized
+  plot_edges(X, Y, weights) 
+  
+  # Create Nodes 
+  radius = data[data$month == month,]$passenger_count_regularized
+  rating = data$average_rating 
+  sentiment = data$review_rating
+  labels = c("ATL", "CLT", "DEN", "DFW", "DTW", "EWR", "LGA", "MSP", "ORD", "SFO")  
+  labels_X = c(0.18, 0.20, 0.33,  0.22,  0.43,  0.54,  0.63,  0.68,  0.705,  0.81)
+  labels_Y = c(0.46, 0.60, 0.56,  0.13,  0.61,  0.58,  0.55,  0.38,  0.23,  0.15)
+  plot_nodes(radius, rating, X, Y, sentiment)
+  label_nodes(labels, labels_X, labels_Y)
+}
+
+# Define UI for application that draws a histogram
+ui <- fluidPage(
+   # Application title
+   titlePanel("Top 10 Airport Destinations from IAH 2018 Analysis"),
+   # Sidebar with a slider input for number of bins 
+    sidebarPanel(
+      radioButtons("month",
+                   label = "Select Month:",
+                   choices = list("January"=1,"February"=2,"March"=3,
+                                  "April"=4, "May"=5, "June"=6, 
+                                  "July"=7, "August"=8, "September"=9, 
+                                  "October"=10, "November"=11, "December"=12),
+                   selected = 1)
+    ),
+      # Show a plot of the generated distribution
+      mainPanel(
+         plotOutput("killerPlot", width="510px", height="400px")
+      )
+   )
+
+# Define server logic required to draw a histogram
+server <- function(input, output) {
+  output$killerPlot <- renderPlot({
+    # generate killer plot based on input$month from ui.R
+    my.grid.plot(alldata, input$month)
+  })
+}
+
+# Run the application 
+#shinyApp(ui = ui, server = server)
+
+my.grid.plot(alldata, 1)
+```
+
 
 #### Killer Plot 2
 
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE, eval=FALSE}
+my.grid.plot <- function(vals) {
+  grid.newpage()
+  grid.layout(1,2)
+  top.vp <- viewport(width = 0.8, height = 0.8)
+  pushViewport(top.vp)
+  grid.lines(x = unit(c(0, 0.9), "npc"),y = unit(c(0.90, 0.90), "npc"))
+  grid.lines(x = unit(c(0, 0.9), "npc"),y = unit(c(0.10, 0.10), "npc"))
+  grid.lines(x = unit(c(0.9, 1.1), "npc"),y = unit(c(0.90, 0.50), "npc"))
+  grid.lines(x = unit(c(0.9, 1.1), "npc"),y = unit(c(0.1, 0.50), "npc"))
+  grid.curve(0,0.90,-0.1,0.50,default.units = "npc", curvature = 0.5)
+  grid.curve(-0.1,0.50,0,0.10,default.units = "npc", curvature = 0.5)
+  grid.curve(0.9,0.90,1.1,0.50,default.units = "npc", curvature = -0.25)
+  grid.curve(0.9,0.1,1.1,0.5,default.units = "npc", curvature = 0.25)
+  grid.lines(x = unit(c(0.35, 0.35), "npc"),y = unit(c(0.9, 1.1), "npc"))
+  grid.lines(x = unit(c(0.35, 0.35), "npc"),y = unit(c(0.1, -1), "npc"))
+  grid.lines(x = unit(c(0.7, 0.39), "npc"),y = unit(c(0.9, 1.7), "npc"))
+  grid.lines(x = unit(c(0.7, 0.39), "npc"),y = unit(c(0.1, -1.3), "npc"))
+  
+for (x in 1:5){
+  grid.lines(x = unit(c(0.05 + 0.18*(x-1), 0.15 + 0.18*(x-1)), "npc"),y = unit(c(0.85, 0.85), "npc"))
+  grid.lines(x = unit(c(0.05 + 0.18*(x-1), 0.15 + 0.18*(x-1)), "npc"),y = unit(c(0.72, 0.72), "npc"))
+  grid.lines(x = unit(c(0.05 + 0.18*(x-1), 0.05 + 0.18*(x-1)), "npc"),y = unit(c(0.72, 0.85), "npc"))
+  grid.lines(x = unit(c(0.15 + 0.18*(x-1), 0.15 + 0.18*(x-1)), "npc"),y = unit(c(0.72, 0.85), "npc"))
+  
+  grid.lines(x = unit(c(0.05 + 0.18*(x-1), 0.15 + 0.18*(x-1)), "npc"),y = unit(c(0.70, 0.70), "npc"))
+  grid.lines(x = unit(c(0.05 + 0.18*(x-1), 0.15 + 0.18*(x-1)), "npc"),y = unit(c(0.57, 0.57), "npc"))
+  grid.lines(x = unit(c(0.05 + 0.18*(x-1), 0.05 + 0.18*(x-1)), "npc"),y = unit(c(0.57, 0.70), "npc"))
+  grid.lines(x = unit(c(0.15 + 0.18*(x-1), 0.15 + 0.18*(x-1)), "npc"),y = unit(c(0.57, 0.70), "npc"))
+  
+  grid.lines(x = unit(c(0.05 + 0.18*(x-1), 0.15 + 0.18*(x-1)), "npc"),y = unit(c(0.85, 0.85), "npc"))
+  grid.lines(x = unit(c(0.05 + 0.18*(x-1), 0.15 + 0.18*(x-1)), "npc"),y = unit(c(0.72, 0.72), "npc"))
+  grid.lines(x = unit(c(0.05 + 0.18*(x-1), 0.05 + 0.18*(x-1)), "npc"),y = unit(c(0.72, 0.85), "npc"))
+  grid.lines(x = unit(c(0.15 + 0.18*(x-1), 0.15 + 0.18*(x-1)), "npc"),y = unit(c(0.72, 0.85), "npc"))
+  
+  grid.lines(x = unit(c(0.05 + 0.18*(x-1), 0.15 + 0.18*(x-1)), "npc"),y = unit(c(0.43, 0.43), "npc"))
+  grid.lines(x = unit(c(0.05 + 0.18*(x-1), 0.15 + 0.18*(x-1)), "npc"),y = unit(c(0.30, 0.30), "npc"))
+  grid.lines(x = unit(c(0.05 + 0.18*(x-1), 0.05 + 0.18*(x-1)), "npc"),y = unit(c(0.30, 0.43), "npc"))
+  grid.lines(x = unit(c(0.15 + 0.18*(x-1), 0.15 + 0.18*(x-1)), "npc"),y = unit(c(0.30, 0.43), "npc"))
+  
+  grid.lines(x = unit(c(0.05 + 0.18*(x-1), 0.15 + 0.18*(x-1)), "npc"),y = unit(c(0.28, 0.28), "npc"))
+  grid.lines(x = unit(c(0.05 + 0.18*(x-1), 0.15 + 0.18*(x-1)), "npc"),y = unit(c(0.15, 0.15), "npc"))
+  grid.lines(x = unit(c(0.05 + 0.18*(x-1), 0.05 + 0.18*(x-1)), "npc"),y = unit(c(0.15, 0.28), "npc"))
+  grid.lines(x = unit(c(0.15 + 0.18*(x-1), 0.15 + 0.18*(x-1)), "npc"),y = unit(c(0.15, 0.28), "npc"))
+}
+
+  grid.text("AIR405", x=.5,y=0.03)
+  grid.text("AIR405", x=.5,y=0.97)
+}
+```
+
+```{r, echo=FALSE, message = FALSE, error = FALSE, warning=FALSE, fig.height=5.5, fig.width=7.5}
+
+res <- dbSendQuery(conn = dcon, "
+                   SELECT UNIQUE_CARRIER_NAME, count(*) as count, sum(PASSENGERS) as passenger_count, sum(SEATS) as capacity
+                   FROM passengers
+                   WHERE ORIGIN = 'IAH'
+                   GROUP BY UNIQUE_CARRIER_NAME
+                   ORDER BY passenger_count;")
+airlines <- dbFetch(res, -1)
+dbClearResult(res)
+total_passengers_carried <- sum(airlines$passenger_count)
+airlines$percent = airlines$passenger_count / total_passengers_carried
+
+plane<-readJPEG("C:/Users/bcard/Documents/SavedStuff/Stat405/Plane.jpg")
+airlineu<-readJPEG("C:/Users/bcard/Documents/SavedStuff/Stat405/United_Air_Lines_Inc..jpeg")
+#now open a plot window with coordinates
+plot(1:10,ty="n",xaxt='n',yaxt='n', axes=FALSE, ylab = "", xlab = "Proportion of Passengers carried out of IAH by Airline")
+
+#specify the position of the image through bottom-left and top-right coords
+rasterImage(plane,0,1,10.5,10)
+
+for (x in 1:5){
+rasterImage(airlineu,1.57 + (x-1)*1.465 , 3.05 , 2.4 + (x-1)*1.465 , 3.9)
+rasterImage(airlineu,1.57 + (x-1)*1.465 , 4.05 , 2.4 + (x-1)*1.465 , 4.9)  
+}
+
+airlinem<-readJPEG("C:/Users/bcard/Documents/SavedStuff/Stat405/Mesa_Airlines_Inc..jpeg")
+rasterImage(airlinem,1.57 , 5.85 , 2.4 , 6.7)
+rasterImage(airlinem,1.57 + (1)*1.465 , 5.85 , 2.4 + (1)*1.465 , 6.75)
+rasterImage(airlinem,1.57 + (2)*1.465 , 5.85 , 2.4 + (2)*1.465 , 6.75)
+
+airlinee<-readJPEG("C:/Users/bcard/Documents/SavedStuff/Stat405/ExpressJet_Airlines_LLC.jpg")
+rasterImage(airlinee,1.57 , 6.85 , 2.4 , 7.75)
+rasterImage(airlinee,1.57 + (1)*1.465 , 6.85 , 2.4 + (1)*1.465 , 7.75)
+
+airlines<-readJPEG("C:/Users/bcard/Documents/SavedStuff/Stat405/Spirit_Air_lines.jpeg")
+rasterImage(airlines,1.57 + (2)*1.465 , 6.85 , 2.4 + (2)*1.465 , 7.75)
+rasterImage(airlines,1.57 + (3)*1.465 , 6.85 , 2.4 + (3)*1.465 , 7.75)
+
+airlineaa<-readJPEG("C:/Users/bcard/Documents/SavedStuff/Stat405/American_Airlines_Inc..jpg")
+rasterImage(airlineaa,1.57 + (3)*1.465 , 5.85 , 2.4 + (3)*1.465 , 6.75)
+
+airliner<-readJPEG("C:/Users/bcard/Documents/SavedStuff/Stat405/Republic_Airline.jpeg")
+rasterImage(airliner,1.57 + (4)*1.465 , 5.85 , 2.4 + (4)*1.465 , 6.75)
+
+```
+
+The next killer plot is a pictorial representation of the market share of airlines commuting passengers from IAH. There are a total of 20 seats in the airplane, where each seat represents approximately 5% of the market share. As depicted, United Airlines had the greatest market share (50%), followed by Mesa Airlines (15%), Express Jet Airlines (10%), Spirit Airlines (10%), American Airlines (5%), Republic Airlines (5%), and lastly all other airlines (5%).
+
 ## Conclusion 
+
+### Research Questions
+
+Upon our analysis of IAH (Bush International Airport - Houston, TX) we were able to answer our research questions:
+
+##### What are the most popular airlines and destinations from IAH?
+
+Based on our market share analysis we were able to identify the most popular airlines as United Airlines, Mesa Airlines, Express Jet Airlines, Spirit Airlines, American Airlines, and Republic Airlines. The top destinations (airport) were identified as the following: ATL, CLT, DEN, DFW, DTW, EWR, LGA, MSP, ORD, SFO.
+
+##### How have flight patterns out of IAH changed over time?
+
+Through modelling our flight data we were able to identify yearly trends of departing flights remaining consistent from 2015-2017 with a significant jump in 2018. We also identified the seasonal trend of consistently more flights being taken in the summer months (Jun-Aug).
+
+##### How does airport quality affect the number of flights and passengers going to an airport?
+
+Through our sentiment analysis we identified that the overall rating of an airport doesn’t impact the number of flights and passengers going to that airport. This analysis shows that people’s location and travel preferences weigh considerably more than the quality of the airport.
+
+### Summary
+
+In conclusion, we were able to provide a comprehensive analysis of IAH. We were able to:
+
+1. Reinforce assumptions on seasonal effects on flight patterns
+2. Analyze flight patterns over time through a time series, and create a forecasting model with minimal error
+3. Develop 2 killer plots to visualize flight pattern and market share data
+
+
